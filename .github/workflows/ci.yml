@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Build contracts
         run: |
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Run tests
         run: forge test
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Run coverage
         run: forge coverage --report summary --report lcov
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: dutterbutter/foundry-zksync-toolchain@v1
 
       - name: Install scopelint
         uses: engineerd/configurator@v0.0.8
