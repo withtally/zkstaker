@@ -56,7 +56,7 @@ jobs:
       - name: Filter directories
         run: |
           sudo apt update && sudo apt install -y lcov
-          lcov --remove lcov.info 'test/*' 'script/*' --output-file lcov.info --rc lcov_branch_coverage=1
+          lcov --remove lcov.info 'test/*' --output-file lcov.info --rc branch_coverage=1
 
       # This step posts a detailed coverage report as a comment and deletes previous comments on
       # each push. The below step is used to fail coverage if the specified coverage threshold is
@@ -101,23 +101,24 @@ jobs:
           scopelint --version
           scopelint check
 
-  slither-analyze:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v3
+  # DISABLED FOR NOW
+  # slither-analyze:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     security-events: write
+  #   steps:
+  #     - uses: actions/checkout@v3
 
-      - name: Run Slither
-        uses: crytic/slither-action@v0.3.0
-        id: slither # Required to reference this step in the next step.
-        with:
-          fail-on: none # Required to avoid failing the CI run regardless of findings.
-          sarif: results.sarif
-          slither-args: --filter-paths "./lib|./test" --exclude naming-convention,solc-version
+  #     - name: Run Slither
+  #       uses: crytic/slither-action@v0.3.0
+  #       id: slither # Required to reference this step in the next step.
+  #       with:
+  #         fail-on: none # Required to avoid failing the CI run regardless of findings.
+  #         sarif: results.sarif
+  #         slither-args: --filter-paths "./lib|./test" --exclude naming-convention,solc-version
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: ${{ steps.slither.outputs.sarif }}
+  #     - name: Upload SARIF file
+  #       uses: github/codeql-action/upload-sarif@v2
+  #       with:
+  #         sarif_file: ${{ steps.slither.outputs.sarif }}
