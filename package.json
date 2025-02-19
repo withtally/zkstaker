@@ -1,0 +1,35 @@
+{
+  "name": "zkstaker",
+  "license": "MIT",
+  "scripts": {
+    "clean": "forge clean && npx hardhat clean",
+    "compile": "forge build --zksync && npx hardhat compile",
+    "local-node": "npx hardhat node-zksync",
+    "script": "node script/RunScript.js",
+    "foundry-test": "forge test --no-match-path 'test/*.integration.t.sol' --zksync",
+    "test": "forge test  && npx hardhat test",
+    "lint": "scopelint check",
+    "lint:fix": "scopelint fmt"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std",
+    "@matterlabs/hardhat-zksync-deploy": "^1.2.1",
+    "@matterlabs/hardhat-zksync-node": "^1.0.3",
+    "@matterlabs/hardhat-zksync-solc": "^1.1.4",
+    "@matterlabs/hardhat-zksync-upgradable": "^1.4.1",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "latest",
+    "@openzeppelin/contracts-upgradeable": "latest",
+    "@openzeppelin/upgrades-core": "latest",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.2"
+  },
+  "volta": {
+    "node": "20.12.0",
+    "npm": "10.5.0"
+  },
+  "dependencies": {
+    "@matterlabs/hardhat-zksync-verify": "^1.6.0",
+    "staker": "github:withtally/staker#63ca8f1ff78f9a6de6fa79062384d54da5348e75"
+  }
+}
