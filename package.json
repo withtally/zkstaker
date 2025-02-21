@@ -30,6 +30,6 @@
   },
   "dependencies": {
     "@matterlabs/hardhat-zksync-verify": "^1.6.0",
-    "staker": "github:withtally/staker#63ca8f1ff78f9a6de6fa79062384d54da5348e75"
+    "staker": "github:withtally/staker#608048830f2872aeb20835fd1cc8edd031ddfe14"
   }
 }
