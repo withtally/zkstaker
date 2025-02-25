@@ -10,19 +10,19 @@ import {IEarningPowerCalculator} from "staker/src/interfaces/IEarningPowerCalcul
 
 /// @title ZkStaker
 /// @author [ScopeLift](https://scopelift.co)
-/// @notice A staking contract for ZkSync that extends the Staker contract from
+/// @notice A staking contract for ZK Nation that extends the Staker contract from
 /// withtally/staker. This implementation includes permit functionality for gasless approvals,
 /// staking on behalf of other addresses, and delegation of voting power through surrogate
 /// contracts.
 /// @dev This contract combines multiple extension modules from the base Staker.
 contract ZkStaker is Staker, StakerPermitAndStake, StakerOnBehalf, StakerDelegateSurrogateVotes {
-  /// @notice Initializes the ZkStaker contract with required parameters
-  /// @param _rewardsToken ERC20 token in which rewards will be denominated
-  /// @param _stakeToken Delegable governance token which users will stake to earn rewards
-  /// @param _earningPowerCalculator The contract that will calculate earning power for stakers
-  /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power
-  /// @param _admin Address which will have permission to manage reward notifiers
-  /// @param _name Name used in the EIP712 domain separator for permit functionality
+  /// @notice Initializes the ZkStaker contract with required parameters.
+  /// @param _rewardsToken ERC20 token in which rewards will be denominated.
+  /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
+  /// @param _earningPowerCalculator The contract that will calculate earning power for stakers.
+  /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power.
+  /// @param _admin Address which will have permission to manage reward notifiers.
+  /// @param _name Name used in the EIP712 domain separator for permit functionality.
   constructor(
     IERC20 _rewardsToken,
     IERC20Staking _stakeToken,
