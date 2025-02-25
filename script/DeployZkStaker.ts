@@ -1,0 +1,58 @@
+import { config as dotEnvConfig } from "dotenv";
+import * as zk from 'zksync-ethers';
+import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
+import { Wallet, utils } from "zksync-ethers";
+import * as hre from "hardhat";
+
+// Before executing a real deployment, be sure to set these values as appropriate for the environment being deploying
+// to. The values used in the script at the time of deployment can be checked in along with the deployment artifacts
+// produced by running the scripts.
+
+// EarningPowerCalculator deployment constructor arguments
+const EARNING_POWER_CALCULATOR_NAME = "IdentityEarningPowerCalculator";
+
+
+// ZkStaker deployment constructor arguments
+const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
+const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
+const MAX_BUMP_TIP = "100000000000000000000000"; // 1e23 string instead of bigNumber
+const STAKER_NAME = "ZkStaker";
+
+
+async function main() {
+  dotEnvConfig();
+
+  const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
+  if (!deployerPrivateKey) {
+    throw "Please set DEPLOYER_PRIVATE_KEY in your .env file";
+  }
+  const zkWallet = new Wallet(deployerPrivateKey);
+  const deployer = new Deployer(hre, zkWallet);
+
+  // Deploy EarningPowerCalculator contract using create
+  const earningPowerCalculatorName = EARNING_POWER_CALCULATOR_NAME;
+  console.log("Deploying " + earningPowerCalculatorName + "...");
+  const earningPowerCalculatorContractArtifact = await deployer.loadArtifact(earningPowerCalculatorName);
+  const earningPowerCalculator = await deployer.deploy(earningPowerCalculatorContractArtifact, [], "create", undefined);
+  const earningPowerCalculaterContractAddress = await earningPowerCalculator.getAddress();
+  console.log(`${earningPowerCalculatorName} was deployed to ${earningPowerCalculaterContractAddress}`);
+
+  // Deploy ZkStaker contract using create
+  const zkStakerContractName  = "ZkStaker";
+  const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
+  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, earningPowerCalculaterContractAddress, MAX_BUMP_TIP, zkWallet.address, STAKER_NAME];
+  const zkStaker = await deployer.deploy(zkStakerContractArtifact, constructorArgs, "create", undefined);
+  const zkStakerContractAddress = await zkStaker.getAddress();
+  console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
+
+  // Set the admin of the ZkStaker contract to the timelock
+  zkStaker.setAdmin(ZK_TOKEN_TIMELOCK_ADDRESS);
+
+  // Output the contract addresses to be captured by the calling script
+  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculaterContractAddress}\n`);
+}
+
+main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

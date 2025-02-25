@@ -8,6 +8,11 @@ import {StakerDelegateSurrogateVotes} from "staker/src/extensions/StakerDelegate
 import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/src/interfaces/IEarningPowerCalculator.sol";
 
+// this import was needed to get hardhat to include the calculators into the zk-artifacts so the
+// deploy script could find them
+import {IdentityEarningPowerCalculator} from
+  "staker/src/calculators/IdentityEarningPowerCalculator.sol";
+
 /// @title ZkStaker
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A staking contract for ZK Nation that extends the Staker contract from
