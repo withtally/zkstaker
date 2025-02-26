@@ -15,7 +15,7 @@ const EARNING_POWER_CALCULATOR_NAME = "IdentityEarningPowerCalculator";
 // ZkStaker deployment constructor arguments
 const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
-const MAX_BUMP_TIP = "100000000000000000000000"; // 1e23 string instead of bigNumber
+const MAX_BUMP_TIP = "1000000000000000000"; // 1e18 string instead of bigNumber
 const STAKER_NAME = "ZkStaker";
 
 
