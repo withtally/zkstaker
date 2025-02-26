@@ -11,6 +11,11 @@ import * as hre from "hardhat";
 // EarningPowerCalculator deployment constructor arguments
 const EARNING_POWER_CALCULATOR_NAME = "IdentityEarningPowerCalculator";
 
+// Notifier deployment constructor arguments
+const REWARD_AMOUNT = "1000000000000000000"; // 1e18 string instead of bigNumber
+const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
+const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
+
 
 // ZkStaker deployment constructor arguments
 const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
@@ -45,11 +50,21 @@ async function main() {
   const zkStakerContractAddress = await zkStaker.getAddress();
   console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
 
+  // Deploy the MintRewardNotifier contract using create
+  const mintRewardNotifierContractName = "MintRewardNotifier";
+  const mintRewardNotifierContractArtifact = await deployer.loadArtifact(mintRewardNotifierContractName);
+  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_TOKEN_TIMELOCK_ADDRESS, ZK_TOKEN_TIMELOCK_ADDRESS], "create", undefined);
+  const mintRewardNotifierContractAddress = await mintRewardNotifier.getAddress();
+  console.log(`${mintRewardNotifierContractName} was deployed to ${mintRewardNotifierContractAddress}`);
+
+  // Set the notifier of the ZkStaker contract to the MintRewardNotifier
+  await zkStaker.setRewardNotifier(mintRewardNotifierContractAddress, true);
+
   // Set the admin of the ZkStaker contract to the timelock
-  zkStaker.setAdmin(ZK_TOKEN_TIMELOCK_ADDRESS);
+  await zkStaker.setAdmin(ZK_TOKEN_TIMELOCK_ADDRESS);
 
   // Output the contract addresses to be captured by the calling script
-  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculaterContractAddress}\n`);
+  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculaterContractAddress}\nMINT_REWARD_NOTIFIER_ADDRESS=${mintRewardNotifierContractAddress}\n`);
 }
 
 main().catch((error) => {

@@ -8,9 +8,12 @@ dotenv.config();
 
 describe("DeployZkStaker", function () {
   let zkStaker: Contract;
+  let mintRewardNotifier: Contract;
+  let identityEarningPowerCalculator: Contract;
   let localNodeProcess: any;
-  let contractAddress = ""
+  let zkStakerContractAddress  = ""
   let earningPowerCalculatorAddress = "";
+  let mintRewardNotifierAddress = "";
 
   before(async function () {
     // Get the local Hardhat node is running
@@ -36,9 +39,10 @@ describe("DeployZkStaker", function () {
       console.log("Deploy script output:", output);
       const zkStakerMatch = output.match(/ZKSTAKER_ADDRESS=(0x[a-fA-F0-9]{40})\n/);
       const earningPowerCalculatorMatch = output.match(/EARNING_POWER_CALCULATOR_ADDRESS=(0x[a-fA-F0-9]{40})\n/);
+      const mintRewardNotifierMatch = output.match(/MINT_REWARD_NOTIFIER_ADDRESS=(0x[a-fA-F0-9]{40})\n/);
       if (zkStakerMatch) {
-        contractAddress = zkStakerMatch[1];
-        console.log(`Deployed contract address: ${contractAddress}`);
+        zkStakerContractAddress  = zkStakerMatch[1];
+        console.log(`Deployed ZkStaker contract address: ${zkStakerContractAddress }`);
       } else {
         console.error("Failed to capture the ZkStaker contract address.");
       }
@@ -48,12 +52,23 @@ describe("DeployZkStaker", function () {
       } else {
         console.error("Failed to capture the earning power calculator contract address.");
       }
+      if (mintRewardNotifierMatch) {
+        mintRewardNotifierAddress = mintRewardNotifierMatch[1];
+        console.log(`Deployed mint reward notifier address: ${mintRewardNotifierAddress}`);
+      } else {
+        console.error("Failed to capture the mint reward notifier contract address.");
+      }
+
     } catch (error) {
       console.error("Error deploying contract:", error);
     }
-    // Get the deployed contract instance
+    // Get the deployed contract instances
     const ZkStaker = await ethers.getContractFactory("ZkStaker");
-    zkStaker = ZkStaker.attach(contractAddress) as Contract;
+    const MintRewardNotifier = await ethers.getContractFactory("MintRewardNotifier");
+    const IdentityEarningPowerCalculator = await ethers.getContractFactory("IdentityEarningPowerCalculator");
+    zkStaker = ZkStaker.attach(zkStakerContractAddress ) as Contract;
+    mintRewardNotifier = MintRewardNotifier.attach(mintRewardNotifierAddress) as Contract;
+    identityEarningPowerCalculator = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
   });
 
   after(async function () {
@@ -71,17 +86,29 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.earningPowerCalculator()).to.properAddress;
   });
 
+  it("should deploy the MintRewardNotifier contract", async function () {
+    expect(await zkStaker.isRewardNotifier(mintRewardNotifierAddress)).to.equal(true);
+  });
+
   it("should have the correct constructor arguments", async function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
     const MAX_BUMP_TIP = 1000000000000000000n;
     const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
-
+    const REWARD_AMOUNT = 1000000000000000000n;
+    const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
+    const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY;
+    
     expect(await zkStaker.REWARD_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.STAKE_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.MAX_CLAIM_FEE()).to.equal(MAX_CLAIM_FEE);
     expect(await zkStaker.maxBumpTip()).to.equal(MAX_BUMP_TIP);
     expect(await zkStaker.earningPowerCalculator()).to.equal(earningPowerCalculatorAddress);
     expect(await zkStaker.admin()).to.equal(ZK_TOKEN_TIMELOCK_ADDRESS);
+
+    expect(await mintRewardNotifier.RECEIVER()).to.equal(zkStakerContractAddress);
+    expect(await mintRewardNotifier.TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
+    expect(await mintRewardNotifier.rewardAmount()).to.equal(REWARD_AMOUNT);
+    expect(await mintRewardNotifier.rewardInterval()).to.equal(REWARD_INTERVAL);
   });
 });
