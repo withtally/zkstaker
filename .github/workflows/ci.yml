@@ -18,7 +18,7 @@ jobs:
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
-
+        
       - name: Install the dependencies
         run: npm install
 
