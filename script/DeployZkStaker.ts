@@ -39,6 +39,7 @@ async function main() {
   console.log("Deploying " + earningPowerCalculatorName + "...");
   const earningPowerCalculatorContractArtifact = await deployer.loadArtifact(earningPowerCalculatorName);
   const earningPowerCalculator = await deployer.deploy(earningPowerCalculatorContractArtifact, [], "create", undefined);
+  earningPowerCalculator.deploymentTransaction()?.wait();
   const earningPowerCalculaterContractAddress = await earningPowerCalculator.getAddress();
   console.log(`${earningPowerCalculatorName} was deployed to ${earningPowerCalculaterContractAddress}`);
 
@@ -47,6 +48,7 @@ async function main() {
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
   const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, earningPowerCalculaterContractAddress, MAX_BUMP_TIP, zkWallet.address, STAKER_NAME];
   const zkStaker = await deployer.deploy(zkStakerContractArtifact, constructorArgs, "create", undefined);
+  zkStaker.deploymentTransaction()?.wait();
   const zkStakerContractAddress = await zkStaker.getAddress();
   console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
 
@@ -54,6 +56,7 @@ async function main() {
   const mintRewardNotifierContractName = "MintRewardNotifier";
   const mintRewardNotifierContractArtifact = await deployer.loadArtifact(mintRewardNotifierContractName);
   const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_TOKEN_TIMELOCK_ADDRESS, ZK_TOKEN_TIMELOCK_ADDRESS], "create", undefined);
+  mintRewardNotifier.deploymentTransaction()?.wait();
   const mintRewardNotifierContractAddress = await mintRewardNotifier.getAddress();
   console.log(`${mintRewardNotifierContractName} was deployed to ${mintRewardNotifierContractAddress}`);
 
