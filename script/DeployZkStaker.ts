@@ -27,7 +27,9 @@ const STAKER_NAME = "ZkStaker";
 async function main() {
   dotEnvConfig();
 
-  const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
+  // TODO: Uncomment this line referencing the environment variable when secret can be set on CI
+  const deployerPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  // const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
   if (!deployerPrivateKey) {
     throw "Please set DEPLOYER_PRIVATE_KEY in your .env file";
   }
