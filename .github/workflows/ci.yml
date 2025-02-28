@@ -18,8 +18,14 @@ jobs:
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
+        
+      - name: Install the dependencies
+        run: npm install
 
       - name: Build contracts
+        run: npm run compile
+
+      - name: Build contracts to get sizes
         run: |
           forge --version
           forge build --sizes
@@ -32,8 +38,11 @@ jobs:
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
 
+      - name: Install the dependencies
+        run: npm install
+
       - name: Run tests
-        run: forge test
+        run: npm run test
 
   coverage:
     runs-on: ubuntu-latest
