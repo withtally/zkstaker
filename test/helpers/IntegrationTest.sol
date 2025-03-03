@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.23;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
 import {IdentityEarningPowerCalculator} from
@@ -18,8 +18,8 @@ contract IntegrationTest is Test {
   uint256 constant SCALE_FACTOR = 1e36;
 
   function setUp() public virtual {
-    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 4_797_321);
-    // vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
+    uint256 _forkId = vm.createFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
+    vm.selectFork(_forkId);
     calculator = new IdentityEarningPowerCalculator();
     zkStaker = new ZkStaker(
       IERC20(ZK_TOKEN_ADDRESS),
