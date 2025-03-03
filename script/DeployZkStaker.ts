@@ -12,7 +12,7 @@ import * as hre from "hardhat";
 const EARNING_POWER_CALCULATOR_NAME = "IdentityEarningPowerCalculator";
 
 // Notifier deployment constructor arguments
-const REWARD_AMOUNT = "1000000000000000000"; // 1e18 string instead of bigNumber
+const REWARD_AMOUNT = "1000000000000000000"; // TODO: Verify this value (placeholder for now)
 const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
 const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 
@@ -20,8 +20,8 @@ const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 // ZkStaker deployment constructor arguments
 const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
-const MAX_BUMP_TIP = "1000000000000000000"; // 1e18 string instead of bigNumber
-const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // 1e24 string instead of bigNumber
+const MAX_BUMP_TIP = "1000000000000000000"; // TODO: Verify this value (placeholder for now)
+const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODP: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
 
 
