@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {Staker, IERC20} from "staker/src/Staker.sol";
-import {StakerPermitAndStake} from "staker/src/extensions/StakerPermitAndStake.sol";
-import {StakerOnBehalf, EIP712} from "staker/src/extensions/StakerOnBehalf.sol";
-import {StakerDelegateSurrogateVotes} from "staker/src/extensions/StakerDelegateSurrogateVotes.sol";
-import {StakerCapDeposits} from "staker/src/extensions/StakerCapDeposits.sol";
-import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
-import {IEarningPowerCalculator} from "staker/src/interfaces/IEarningPowerCalculator.sol";
+import {Staker, IERC20} from "staker/Staker.sol";
+import {StakerPermitAndStake} from "staker/extensions/StakerPermitAndStake.sol";
+import {StakerOnBehalf, EIP712} from "staker/extensions/StakerOnBehalf.sol";
+import {StakerDelegateSurrogateVotes} from "staker/extensions/StakerDelegateSurrogateVotes.sol";
+import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
+import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
-import {IdentityEarningPowerCalculator} from
-  "staker/src/calculators/IdentityEarningPowerCalculator.sol";
-import {MintRewardNotifier} from "staker/src/notifiers/MintRewardNotifier.sol";
+import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarningPowerCalculator.sol";
+import {MintRewardNotifier} from "staker/notifiers/MintRewardNotifier.sol";
 
 /// @title ZkStaker
 /// @author [ScopeLift](https://scopelift.co)
