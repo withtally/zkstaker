@@ -7,7 +7,7 @@
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
     "foundry-test": "forge test --no-match-path 'test/*.integration.t.sol' --zksync",
-    "test": "forge test  && npx hardhat test",
+    "test": "forge test --zksync && npx hardhat test",
     "lint": "scopelint check",
     "lint:fix": "scopelint fmt"
   },
@@ -28,6 +28,7 @@
     "npm": "10.5.0"
   },
   "dependencies": {
-    "staker": "github:withtally/staker#608048830f2872aeb20835fd1cc8edd031ddfe14"
+    "@matterlabs/hardhat-zksync-verify": "^1.6.0",
+    "staker": "github:withtally/staker#v1.0.1"
   }
 }
