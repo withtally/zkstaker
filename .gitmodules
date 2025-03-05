@@ -7,6 +7,3 @@
 [submodule "lib/staker.git"]
 	path = lib/staker.git
 	url = https://github.com/withtally/staker.git
-[submodule "lib/staker"]
-	path = lib/staker
-	url = https://github.com/withtally/staker
