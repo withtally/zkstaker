@@ -12,14 +12,15 @@
     "lint:fix": "scopelint fmt"
   },
   "devDependencies": {
-    "forge-std": "github:foundry-rs/forge-std",
     "@matterlabs/hardhat-zksync-deploy": "^1.2.1",
     "@matterlabs/hardhat-zksync-node": "^1.0.3",
     "@matterlabs/hardhat-zksync-solc": "^1.1.4",
     "@matterlabs/hardhat-zksync-upgradable": "^1.4.1",
+    "@matterlabs/hardhat-zksync-verify": "^1.6.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts": "^5.2.0",
     "dotenv": "^16.4.5",
+    "forge-std": "github:foundry-rs/forge-std",
     "hardhat": "^2.22.2"
   },
   "volta": {
@@ -27,7 +28,6 @@
     "npm": "10.5.0"
   },
   "dependencies": {
-    "@matterlabs/hardhat-zksync-verify": "^1.6.0",
     "staker": "github:withtally/staker#608048830f2872aeb20835fd1cc8edd031ddfe14"
   }
 }
