@@ -5,6 +5,7 @@ import {Staker, IERC20} from "staker/Staker.sol";
 import {StakerPermitAndStake} from "staker/extensions/StakerPermitAndStake.sol";
 import {StakerOnBehalf, EIP712} from "staker/extensions/StakerOnBehalf.sol";
 import {StakerDelegateSurrogateVotes} from "staker/extensions/StakerDelegateSurrogateVotes.sol";
+import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 
