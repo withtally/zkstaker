@@ -93,7 +93,7 @@ describe("DeployZkStaker", function () {
   it("should have the correct constructor arguments", async function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
-    const MAX_BUMP_TIP = 1000000000000000000n;
+    const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 1000000000000000000000000n; // 1e24 string instead of bigNumber
     const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
     const REWARD_AMOUNT = 1000000000000000000n;
