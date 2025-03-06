@@ -19,7 +19,7 @@ const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 
 // ZkStaker deployment constructor arguments
 const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
-const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
+const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
 const MAX_BUMP_TIP = "1000000000000000000"; // TODO: Verify this value (placeholder for now)
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODP: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
@@ -58,7 +58,7 @@ async function main() {
   // Deploy the MintRewardNotifier contract using create
   const mintRewardNotifierContractName = "MintRewardNotifier";
   const mintRewardNotifierContractArtifact = await deployer.loadArtifact(mintRewardNotifierContractName);
-  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_TOKEN_TIMELOCK_ADDRESS, ZK_TOKEN_TIMELOCK_ADDRESS], "create", undefined);
+  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_GOV_OPS_TIMELOCK, ZK_GOV_OPS_TIMELOCK], "create", undefined);
   await mintRewardNotifier.deploymentTransaction()?.wait();
   const mintRewardNotifierContractAddress = await mintRewardNotifier.getAddress();
   console.log(`${mintRewardNotifierContractName} was deployed to ${mintRewardNotifierContractAddress}`);
@@ -67,7 +67,7 @@ async function main() {
   await zkStaker.setRewardNotifier(mintRewardNotifierContractAddress, true);
 
   // Set the admin of the ZkStaker contract to the timelock
-  await zkStaker.setAdmin(ZK_TOKEN_TIMELOCK_ADDRESS);
+  await zkStaker.setAdmin(ZK_GOV_OPS_TIMELOCK);
 
   // Output the contract addresses to be captured by the calling script
   console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculaterContractAddress}\nMINT_REWARD_NOTIFIER_ADDRESS=${mintRewardNotifierContractAddress}\n`);
