@@ -5,7 +5,7 @@
   remappings = [
     "forge-std/=lib/forge-std/src/",
     "openzeppelin/=lib/staker/lib/openzeppelin-contracts/contracts/",
-    "staker-test/=lib/staker/test/"
+    "staker-test/=lib/staker/test/",
   ]
   solc_version = "0.8.28"
   verbosity = 3
