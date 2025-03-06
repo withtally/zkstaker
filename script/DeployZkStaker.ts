@@ -20,6 +20,7 @@ const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 // ZkStaker deployment constructor arguments
 const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
+const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
 const MAX_BUMP_TIP = 0;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODP: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
@@ -58,7 +59,7 @@ async function main() {
   // Deploy the MintRewardNotifier contract using create
   const mintRewardNotifierContractName = "MintRewardNotifier";
   const mintRewardNotifierContractArtifact = await deployer.loadArtifact(mintRewardNotifierContractName);
-  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_GOV_OPS_TIMELOCK, ZK_GOV_OPS_TIMELOCK], "create", undefined);
+  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_GOV_OPS_TIMELOCK, ZK_CAPPED_MINTER], "create", undefined);
   await mintRewardNotifier.deploymentTransaction()?.wait();
   const mintRewardNotifierContractAddress = await mintRewardNotifier.getAddress();
   console.log(`${mintRewardNotifierContractName} was deployed to ${mintRewardNotifierContractAddress}`);

@@ -96,6 +96,7 @@ describe("DeployZkStaker", function () {
     const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 1000000000000000000000000n; // 1e24 string instead of bigNumber
     const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
+    const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
     const REWARD_AMOUNT = 1000000000000000000n;
     const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
     const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY;
@@ -112,5 +113,7 @@ describe("DeployZkStaker", function () {
     expect(await mintRewardNotifier.TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await mintRewardNotifier.rewardAmount()).to.equal(REWARD_AMOUNT);
     expect(await mintRewardNotifier.rewardInterval()).to.equal(REWARD_INTERVAL);
+    expect(await mintRewardNotifier.minter()).to.equal(ZK_CAPPED_MINTER);
+    expect(await mintRewardNotifier.owner()).to.equal(ZK_GOV_OPS_TIMELOCK);
   });
 });
