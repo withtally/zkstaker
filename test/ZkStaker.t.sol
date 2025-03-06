@@ -16,6 +16,7 @@ contract ZkStakerTestBase is Test {
 
   address admin;
   uint256 maxBumpTip;
+  uint256 initialTotalStakeCap;
   string name;
 
   function setUp() public virtual {
@@ -24,6 +25,7 @@ contract ZkStakerTestBase is Test {
     earningPowerCalculator = new MockFullEarningPowerCalculator();
     admin = makeAddr("admin");
     maxBumpTip = 1e18;
+    initialTotalStakeCap = 1e24;
     name = "ZkStaker";
   }
 
@@ -54,6 +56,7 @@ contract Constructor is ZkStakerTestBase {
       IERC20Staking(address(govToken)),
       IEarningPowerCalculator(address(earningPowerCalculator)),
       maxBumpTip,
+      initialTotalStakeCap,
       admin,
       name
     );
@@ -70,6 +73,7 @@ contract Constructor is ZkStakerTestBase {
     address _stakeToken,
     address _earningPowerCalculator,
     uint256 _maxBumpTip,
+    uint256 _initialTotalStakeCap,
     address _admin,
     string memory _name
   ) public {
@@ -80,6 +84,7 @@ contract Constructor is ZkStakerTestBase {
       IERC20Staking(_stakeToken),
       IEarningPowerCalculator(_earningPowerCalculator),
       _maxBumpTip,
+      _initialTotalStakeCap,
       _admin,
       _name
     );
@@ -88,6 +93,7 @@ contract Constructor is ZkStakerTestBase {
     assertEq(address(zkStaker.STAKE_TOKEN()), _stakeToken);
     assertEq(address(zkStaker.earningPowerCalculator()), _earningPowerCalculator);
     assertEq(zkStaker.maxBumpTip(), _maxBumpTip);
+    assertEq(zkStaker.totalStakeCap(), _initialTotalStakeCap);
     assertEq(zkStaker.admin(), _admin);
   }
 
@@ -96,6 +102,7 @@ contract Constructor is ZkStakerTestBase {
     address _stakeToken,
     address _earningPowerCalculator,
     uint256 _maxBumpTip,
+    uint256 _initialTotalStakeCap,
     address _admin,
     string memory _name
   ) public {
@@ -106,6 +113,7 @@ contract Constructor is ZkStakerTestBase {
       IERC20Staking(_stakeToken),
       IEarningPowerCalculator(_earningPowerCalculator),
       _maxBumpTip,
+      _initialTotalStakeCap,
       _admin,
       _name
     );

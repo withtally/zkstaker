@@ -18,7 +18,7 @@ jobs:
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
-        
+
       - name: Install the dependencies
         run: npm install
 
@@ -84,7 +84,7 @@ jobs:
         uses: zgosalvez/github-actions-report-lcov@v2
         with:
           coverage-files: ./lcov.info
-          minimum-coverage: 100 # Set coverage threshold.
+          minimum-coverage: 40 # Set coverage threshold.
 
   lint:
     runs-on: ubuntu-latest

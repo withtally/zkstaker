@@ -94,6 +94,7 @@ describe("DeployZkStaker", function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
     const MAX_BUMP_TIP = 1000000000000000000n;
+    const INITIAL_TOTAL_STAKE_CAP = 1000000000000000000000000n; // 1e24 string instead of bigNumber
     const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
     const REWARD_AMOUNT = 1000000000000000000n;
     const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
@@ -103,6 +104,7 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.STAKE_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.MAX_CLAIM_FEE()).to.equal(MAX_CLAIM_FEE);
     expect(await zkStaker.maxBumpTip()).to.equal(MAX_BUMP_TIP);
+    expect(await zkStaker.totalStakeCap()).to.equal(INITIAL_TOTAL_STAKE_CAP);
     expect(await zkStaker.earningPowerCalculator()).to.equal(earningPowerCalculatorAddress);
     expect(await zkStaker.admin()).to.equal(ZK_TOKEN_TIMELOCK_ADDRESS);
 
