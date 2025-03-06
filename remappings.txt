@@ -1,0 +1,2 @@
+staker/=lib/staker/src/
+staker-test/=lib/staker/test/
