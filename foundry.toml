@@ -5,10 +5,12 @@
   remappings = [
     "forge-std/=lib/forge-std/src/",
     "openzeppelin/=lib/staker/lib/openzeppelin-contracts/contracts/",
+    "staker/=lib/staker/src/",
     "staker-test/=lib/staker/test/",
   ]
   solc_version = "0.8.28"
   verbosity = 3
+libs = ["node_modules", "lib"]
 
 [profile.ci]
   fuzz = { runs = 5000 }
