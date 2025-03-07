@@ -10,7 +10,6 @@
   ]
   solc_version = "0.8.28"
   verbosity = 3
-libs = ["node_modules", "lib"]
 
 [profile.ci]
   fuzz = { runs = 5000 }
