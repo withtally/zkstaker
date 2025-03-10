@@ -93,9 +93,10 @@ describe("DeployZkStaker", function () {
   it("should have the correct constructor arguments", async function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
-    const MAX_BUMP_TIP = 1000000000000000000n;
+    const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 1000000000000000000000000n; // 1e24 string instead of bigNumber
-    const ZK_TOKEN_TIMELOCK_ADDRESS = "0x3E21c654B545Bf6236DC08236169DcF13dA4dDd6"; // TDDO: Verify this address
+    const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
+    const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
     const REWARD_AMOUNT = 1000000000000000000n;
     const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
     const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY;
@@ -106,11 +107,13 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.maxBumpTip()).to.equal(MAX_BUMP_TIP);
     expect(await zkStaker.totalStakeCap()).to.equal(INITIAL_TOTAL_STAKE_CAP);
     expect(await zkStaker.earningPowerCalculator()).to.equal(earningPowerCalculatorAddress);
-    expect(await zkStaker.admin()).to.equal(ZK_TOKEN_TIMELOCK_ADDRESS);
+    expect(await zkStaker.admin()).to.equal(ZK_GOV_OPS_TIMELOCK);
 
     expect(await mintRewardNotifier.RECEIVER()).to.equal(zkStakerContractAddress);
     expect(await mintRewardNotifier.TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await mintRewardNotifier.rewardAmount()).to.equal(REWARD_AMOUNT);
     expect(await mintRewardNotifier.rewardInterval()).to.equal(REWARD_INTERVAL);
+    expect(await mintRewardNotifier.minter()).to.equal(ZK_CAPPED_MINTER);
+    expect(await mintRewardNotifier.owner()).to.equal(ZK_GOV_OPS_TIMELOCK);
   });
 });
