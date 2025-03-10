@@ -6,11 +6,11 @@ import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 // import {ArbitrumDeploy} from "script/ArbitrumDeploy.s.sol";
 // import {DeployArbStakerBaseImpl} from "script/DeployArbStakerBaseImpl.sol";
 import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
-import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
-import {IEarningPowerCalculator} from "staker/src/interfaces/IEarningPowerCalculator.sol";
-import {PercentAssertions} from "staker/test/helpers/PercentAssertions.sol";
+import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
+import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
+import {PercentAssertions} from "staker-test/helpers/PercentAssertions.sol";
 import {BinaryEligibilityOracleEarningPowerCalculator} from
-  "staker/src/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
+  "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
 
 contract Stake is IntegrationTest, PercentAssertions {
   function testForkFuzz_CorrectlyStakeAndEarnRewardsAfterDuration(
@@ -24,6 +24,7 @@ contract Stake is IntegrationTest, PercentAssertions {
     vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
@@ -63,6 +64,7 @@ contract Stake is IntegrationTest, PercentAssertions {
 
     // Only deal the initial amount first
     _initialAmount = _dealStakingToken(_depositor, _initialAmount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _initialAmount);
 
     // Update delegatee score
     // vm.startPrank(calculator.scoreOracle());
@@ -81,6 +83,7 @@ contract Stake is IntegrationTest, PercentAssertions {
 
     // Deal the additional tokens just before staking more
     _additionalAmount = _dealStakingToken(_depositor, _additionalAmount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _additionalAmount);
 
     // Approve and stake additional amount
     vm.startPrank(_depositor);
@@ -117,6 +120,7 @@ contract Unstake is IntegrationTest, PercentAssertions {
     vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _withdrawAmount = bound(_withdrawAmount, 0.1e18, _amount);
     _percentDuration = bound(_percentDuration, 0, 100);
@@ -156,6 +160,7 @@ contract ClaimRewards is IntegrationTest, PercentAssertions {
     vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
@@ -199,6 +204,7 @@ contract ClaimRewards is IntegrationTest, PercentAssertions {
     vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
+    zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _withdrawAmount = bound(_withdrawAmount, 0.1e18, _amount);
     _percentDuration = bound(_percentDuration, 0, 100);

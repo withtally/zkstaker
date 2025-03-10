@@ -3,9 +3,8 @@ pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
-import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
-import {IdentityEarningPowerCalculator} from
-  "staker/src/calculators/IdentityEarningPowerCalculator.sol";
+import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
+import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarningPowerCalculator.sol";
 
 contract IntegrationTest is Test {
   address constant ZK_TOKEN_ADDRESS = 0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E;
@@ -26,7 +25,8 @@ contract IntegrationTest is Test {
       IERC20Staking(ZK_TOKEN_ADDRESS),
       calculator,
       1e18,
-      0x1234567890123456789012345678901234567890,
+      1e24,
+      address(this),
       "ZkStaker"
     );
   }
