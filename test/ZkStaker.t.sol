@@ -3,10 +3,10 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {ZkStaker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.sol";
-import {IERC20Staking} from "staker/src/interfaces/IERC20Staking.sol";
-import {ERC20Fake} from "staker/test/fakes/ERC20Fake.sol";
-import {ERC20VotesMock} from "staker/test/mocks/MockERC20Votes.sol";
-import {MockFullEarningPowerCalculator} from "staker/test/mocks/MockFullEarningPowerCalculator.sol";
+import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
+import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
+import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
+import {MockFullEarningPowerCalculator} from "staker-test/mocks/MockFullEarningPowerCalculator.sol";
 
 contract ZkStakerTestBase is Test {
   ERC20Fake rewardToken;
