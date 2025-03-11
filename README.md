@@ -1,10 +1,15 @@
 # ZkStaker
 
-ZkStaker is a flexible, configurable staking contract. ZkStaker makes it easy to distribute onchain staking rewards for any ERC20 token on the ZkSync Era, including ZK Nation DAO governance tokens. It is based on the Staker contracts. For more information, visit the [Staker Documentation](https://example.com/staker-docs).
+1. [Setup](#setup)
+2. [Development](#development)
+3. [Deployment](#deployment)
+4. [License](#license)
 
-## Deployment
+ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZKNation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
 
-To deploy the project, you will need to use Hardhat and TypeScript. Follow these steps:
+## Setup
+
+For development or deployment, you will first need to clone the repo and install dependencies. ZkStaker uses Hardhat and TypeScript for development, and Foundry for development / testing.
 
 Clone the repo:
 
@@ -13,18 +18,69 @@ git clone https://github.com/withtally/zkstaker.git
 cd zk-staker
 ```
 
-Install dependencies:
+Install the Foundry dependencies:
 
-```bash
+```
+forge install
+```
+
+Install the npm dependencies:
+
+```
 npm install
 ```
 
-Set up your `.env` file (specifically the DEPLOYER_PRIVATE_KEY and ZKSYNC_RPC_URL):
+## Development
+
+Build the contracts, with both `solc` and `zksolc`:
+
+```
+npm run compile
+```
+
+Run the tests (both the hardhat deployment test and foundry tests are run):
+
+```
+npm run test
+```
+
+Clean build artifacts, from both `solc` and `zksolc`:
+
+```
+npm run clean
+```
+
+## Deployment
+
+To deploy the project, you will first need to set up your environtment variables via the `.env` file, and potentially change some constant values in the `DeployZkStaker.ts` deployment script.
+
+Environment Variables
 
 ```bash
 cp .env.template .env
-# edit the .env to fill in values
+# edit the .env to fill in values for DEPLOYER_PRIVATE_KEY and ZKSYNC_RPC_URL
 ```
+
+The DEPLOYER_PRIVATE_KEY should be the private key of the wallet you want to use for deployment.
+
+The ZKSYNC_RPC_URL should be the RPC URL of the ZkSync network you want to deploy to (e.g., ZkSync Era, ZkSync Testnet, etc.).
+
+Script Constants
+
+In the `DeployZkStaker.ts` script, you can change the following constants:
+
+```
+const REWARD_AMOUNT = "1000000000000000000";
+const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
+
+const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; // Previously deployed ZK Capped Minter address
+const MAX_BUMP_TIP = 0;
+const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // Limit to the total amount of ZK tokens that can be staked
+```
+
+Deployment Execution
+
+For the actual deployment, you will need to use Hardhat and TypeScript. Follow these steps:
 
 Compile the contracts:
 
@@ -48,71 +104,27 @@ npx hardhat run script/DeployZkStaker.ts --network <network-name>
 
 Make sure to replace `<network-name>` with the desired network (e.g., `zkSyncEra`, `zkSyncLocal`, etc.), which should be defined in your network settings in `hardhat.config.ts`.
 
-For a local deployment, use `zkSyncLocal` as the network-name.
-
-For a testnet deployment, use `zkSyncEraTestnet` as the network-name.
-
-For a mainnet deployment, use `zkSyncEra` as the network-name.
-
-## Development
-
-These contracts were built and tested with care by the team at [ScopeLift](https://scopelift.co).
-
-#### Requirements
-
-This repository uses the [Foundry](https://book.getfoundry.sh/) development framework for testing. Install Foundry using these [instructions](https://book.getfoundry.sh/getting-started/installation).
-
-This repository also uses the [Hardhat](https://hardhat.org/docs) development framework, with the relevant [zkSync Era plugins](https://docs.zksync.io/build/tooling/hardhat/getting-started.html) for managing deployments.
-
-We use [Volta](https://docs.volta.sh/guide/) to ensure a consistent npm environment between developers. Install volta using these [instructions](https://docs.volta.sh/guide/getting-started).
-
-#### Setup
-
-Clone the repo:
-
-```
-git clone https://github.com/withtally/zkstaker.git
-cd zk-staker
-```
-
-Install the Foundry dependencies:
-
-```
-forge install
-```
-
-Install the npm dependencies:
-
-```
-npm install
-```
-
-Set up your `.env` file:
+For a local deployment, use `zkSyncLocal` as the network-name:
 
 ```bash
-cp .env.template .env
-# edit the .env to fill in values
+npx hardhat run script/DeployZkStaker.ts --network zkSyncLocal
 ```
 
-#### Build and Test
+For a testnet deployment, use `zkSyncEraTestnet` as the network-name:
 
-Build the contracts, with both `solc` and `zksolc`:
-
-```
-npm run compile
+```bash
+npx hardhat run script/DeployZkStaker.ts --network zkSyncEraTestnet
 ```
 
-Run the tests (both the hardhat deployment test and foundry tests are run):):
+For a mainnet deployment, use `zkSyncEra` as the network-name
 
-```
-npm run test
+```bash
+npx hardhat run script/DeployZkStaker.ts --network zkSyncEra
 ```
 
-Clean build artifacts, from both `solc` and `zksolc`:
+This will deploy the contracts to the specified network. Make sure you have enough funds in the wallet associated with `DEPLOYER_PRIVATE_KEY` to cover the deployment costs.
 
-```
-npm run clean
-```
+If the `--network` flag is not specified, the default network will be used, which is defined in `hardhat.config.ts` as `zkSyncLocal`.
 
 ## License
 
