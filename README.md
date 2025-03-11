@@ -6,34 +6,55 @@ ZkStaker is a flexible, configurable staking contract. ZkStaker makes it easy to
 
 To deploy the project, you will need to use Hardhat and TypeScript. Follow these steps:
 
-1. Install dependencies:
+Clone the repo:
 
-   ```bash
-   npm install
-   ```
+```
+git clone https://github.com/withtally/zkstaker.git
+cd zk-staker
+```
 
-2. Compile the contracts:
+Install dependencies:
 
-   ```bash
-   npx hardhat compile
-   ```
+```bash
+npm install
+```
 
-3. For an (optional) local deployment, start a local Hardhat node:
+Set up your `.env` file (specifically the DEPLOYER_PRIVATE_KEY and ZKSYNC_RPC_URL):
 
-   ```bash
-   npx hardhat node-zksync
-   ```
+```bash
+cp .env.template .env
+# edit the .env to fill in values
+```
 
-   This will start a local ZkSync Era node for testing purposes.
+Compile the contracts:
 
-4. Deploy the contracts:
-   ```bash
-   npx hardhat run script/DeployZkStaker.ts --network <network-name>
-   ```
+```bash
+npx hardhat compile
+```
 
-Make sure to replace `<network-name>` with the desired network (e.g., `mainnet`, `ropsten`, etc.). You will also need to configure your network settings in `hardhat.config.ts`.
+For an (optional) local deployment, start a local Hardhat node (in a separate terminal):
 
-### Development
+```bash
+npx hardhat node-zksync
+```
+
+This will start a local ZkSync Era node for testing purposes.
+
+Deploy the contracts:
+
+```bash
+npx hardhat run script/DeployZkStaker.ts --network <network-name>
+```
+
+Make sure to replace `<network-name>` with the desired network (e.g., `zkSyncEra`, `zkSyncLocal`, etc.), which should be defined in your network settings in `hardhat.config.ts`.
+
+For a local deployment, use `zkSyncLocal` as the network-name.
+
+For a testnet deployment, use `zkSyncEraTestnet` as the network-name.
+
+For a mainnet deployment, use `zkSyncEra` as the network-name.
+
+## Development
 
 These contracts were built and tested with care by the team at [ScopeLift](https://scopelift.co).
 
@@ -54,16 +75,16 @@ git clone https://github.com/withtally/zkstaker.git
 cd zk-staker
 ```
 
-Install the npm dependencies:
-
-```
-npm install
-```
-
 Install the Foundry dependencies:
 
 ```
 forge install
+```
+
+Install the npm dependencies:
+
+```
+npm install
 ```
 
 Set up your `.env` file:
@@ -95,4 +116,4 @@ npm run clean
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE-MIT) file for details.
