@@ -3,14 +3,8 @@ pragma solidity ^0.8.23;
 
 import {Test} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
-// import {ArbitrumDeploy} from "script/ArbitrumDeploy.s.sol";
-// import {DeployArbStakerBaseImpl} from "script/DeployArbStakerBaseImpl.sol";
 import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
-import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
-import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 import {PercentAssertions} from "staker-test/helpers/PercentAssertions.sol";
-import {BinaryEligibilityOracleEarningPowerCalculator} from
-  "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
 
 contract Stake is IntegrationTest, PercentAssertions {
   function testForkFuzz_CorrectlyStakeAndEarnRewardsAfterDuration(
@@ -21,18 +15,13 @@ contract Stake is IntegrationTest, PercentAssertions {
     uint256 _percentDuration,
     uint256 _eligibilityScore
   ) public {
-    vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
+    vm.assume(_depositor != address(0) && _delegatee != address(0));
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
     zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
-
-    // Set up the calculator before staking with an eligible score
-    // vm.startPrank(calculator.scoreOracle());
-    // calculator.updateDelegateeScore(_delegatee, _eligibilityScore);
-    // vm.stopPrank();
 
     vm.startPrank(_depositor);
     IERC20(address(zkStaker.STAKE_TOKEN())).approve(address(zkStaker), _amount);
@@ -65,11 +54,6 @@ contract Stake is IntegrationTest, PercentAssertions {
     // Only deal the initial amount first
     _initialAmount = _dealStakingToken(_depositor, _initialAmount);
     zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _initialAmount);
-
-    // Update delegatee score
-    // vm.startPrank(calculator.scoreOracle());
-    // calculator.updateDelegateeScore(_delegatee, _eligibilityScore);
-    // vm.stopPrank();
 
     // Approve and stake initial amount
     vm.startPrank(_depositor);
@@ -117,18 +101,14 @@ contract Unstake is IntegrationTest, PercentAssertions {
     uint256 _percentDuration,
     uint256 _eligibilityScore
   ) public {
-    vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
+    vm.assume(_depositor != address(0) && _delegatee != address(0));
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
     zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
-    _withdrawAmount = bound(_withdrawAmount, 0.1e18, _amount);
+    _withdrawAmount = bound(_withdrawAmount, 1e17, _amount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
-
-    // vm.startPrank(calculator.scoreOracle());
-    // calculator.updateDelegateeScore(_delegatee, _eligibilityScore);
-    // vm.stopPrank();
 
     vm.startPrank(_depositor);
     IERC20(address(zkStaker.STAKE_TOKEN())).approve(address(zkStaker), _amount);
@@ -157,18 +137,13 @@ contract ClaimRewards is IntegrationTest, PercentAssertions {
     uint256 _percentDuration,
     uint256 _eligibilityScore
   ) public {
-    vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
+    vm.assume(_depositor != address(0) && _delegatee != address(0));
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
     zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
-
-    // Set up the calculator before staking with an eligible score
-    // vm.startPrank(calculator.scoreOracle());
-    // calculator.updateDelegateeScore(_delegatee, _eligibilityScore);
-    // vm.stopPrank();
 
     vm.startPrank(_depositor);
     IERC20(address(zkStaker.STAKE_TOKEN())).approve(address(zkStaker), _amount);
@@ -201,19 +176,14 @@ contract ClaimRewards is IntegrationTest, PercentAssertions {
     uint256 _eligibilityScore
   ) public {
     vm.skip(true);
-    vm.assume(_depositor != address(0) && _delegatee != address(0) && _amount != 0);
+    vm.assume(_depositor != address(0) && _delegatee != address(0));
     vm.assume(_depositor != address(zkStaker));
     _amount = _dealStakingToken(_depositor, _amount);
     zkStaker.setTotalStakeCap(zkStaker.totalStakeCap() + _amount);
     _rewardAmount = _boundToRealisticReward(_rewardAmount);
-    _withdrawAmount = bound(_withdrawAmount, 0.1e18, _amount);
+    _withdrawAmount = bound(_withdrawAmount, 1e17, _amount);
     _percentDuration = bound(_percentDuration, 0, 100);
     _eligibilityScore = _boundEligibilityScore(_eligibilityScore);
-
-    // Set up the calculator before staking with an eligible score
-    // vm.startPrank(calculator.scoreOracle());
-    // calculator.updateDelegateeScore(_delegatee, _eligibilityScore);
-    // vm.stopPrank();
 
     vm.startPrank(_depositor);
     IERC20(address(zkStaker.STAKE_TOKEN())).approve(address(zkStaker), _amount);
