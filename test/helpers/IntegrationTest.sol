@@ -9,7 +9,6 @@ import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarning
 contract IntegrationTest is Test {
   address constant ZK_TOKEN_ADDRESS = 0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E;
   string constant ZKSYNC_RPC_URL = "https://mainnet.era.zksync.io";
-  // string constant ZKSYNC_RPC_URL = "https://sepolia.explorer.zksync.io";
   ZkStaker zkStaker;
   IdentityEarningPowerCalculator calculator;
   // ArbitrumDeploy deployScript;
@@ -33,7 +32,7 @@ contract IntegrationTest is Test {
 
   function _dealStakingToken(address _recipient, uint96 _amount) internal returns (uint96) {
     // Bound amount to reasonable values
-    _amount = uint96(bound(_amount, 0.1e18, 25_000_000e18));
+    _amount = uint96(bound(_amount, 0.1e18, 250_000_000e18));
     deal(address(zkStaker.STAKE_TOKEN()), _recipient, _amount);
     return _amount;
   }
