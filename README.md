@@ -1,11 +1,57 @@
 # ZkStaker
 
-ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZK  Nation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
+ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZK Nation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
 
+- [Overview](#overview)
 - [Setup](#setup)
 - [Development](#development)
 - [Deployment](#deployment)
 - [License](#license)
+
+## Overview
+
+The staking system accepts user stake, delegates their voting power, and distributes rewards for eligible stakers.
+
+```mermaid
+
+stateDiagram-v2
+    direction TB
+
+    User --> CUF: Stakes tokens
+
+    state ZkStaker {
+        state "Key User Functions" as CUF {
+            stake --> claimReward
+            claimReward --> withdraw
+        }
+
+        state "Key State" as KS {
+            rewardRate
+            deposits
+        }
+
+        state "Admin Functions" as CAF {
+            setRewardNotifier
+            setEarningPowerCalculator
+        }
+    }
+
+    state DelegationSurrogate {
+        state "Per Delegatee" as PD {
+            HoldsTokens
+            DelegatesVotes
+        }
+    }
+
+    KS  --> DelegationSurrogate: Holds tokens per delegatee
+    DelegationSurrogate --> Delegatee: Delegates voting power
+    Admin --> CAF: e.g. governance
+
+    RewardNotifier --> ZkStaker: Tells ZkStaker about new rewards
+    EarningPowerCalculator --> ZkStaker: Calculates eligibility
+
+
+```
 
 ## Setup
 
