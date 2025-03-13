@@ -45,10 +45,10 @@ stateDiagram-v2
 
     KS  --> DelegationSurrogate: Holds tokens per delegatee
     DelegationSurrogate --> Delegatee: Delegates voting power
-    Admin --> CAF: e.g. governance
+    GovOps Governor -->
 
-    RewardNotifier --> ZkStaker: Tells ZkStaker about new rewards
-    EarningPowerCalculator --> ZkStaker: Calculates eligibility
+    MintRewardNotifier --> mints capped minter rewards
+    IdentityEarningPowerCalculator --> determines stake rewards
 
 
 ```
