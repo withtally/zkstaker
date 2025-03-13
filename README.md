@@ -45,7 +45,7 @@ stateDiagram-v2
 
     KS  --> DelegationSurrogate: Holds tokens per delegatee
     DelegationSurrogate --> Delegatee: Delegates voting power
-    GovOps Governor -->
+    GovOps Governor --> Admin
 
     MintRewardNotifier --> mints capped minter rewards
     IdentityEarningPowerCalculator --> determines stake rewards
