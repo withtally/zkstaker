@@ -1,15 +1,61 @@
 # ZkStaker
 
-1. [Setup](#setup)
-2. [Development](#development)
-3. [Deployment](#deployment)
-4. [License](#license)
+ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZK Nation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
 
-ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZKNation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
+- [Overview](#overview)
+- [Setup](#setup)
+- [Development](#development)
+- [Deployment](#deployment)
+- [License](#license)
+
+## Overview
+
+The staking system accepts user stake, delegates their voting power, and distributes rewards for eligible stakers.
+
+```mermaid
+
+stateDiagram-v2
+    direction TB
+
+    User --> CUF: Stakes tokens
+
+    state ZkStaker {
+        state "Key User Functions" as CUF {
+            stake --> claimReward
+            claimReward --> withdraw
+        }
+
+        state "Key State" as KS {
+            rewardRate
+            deposits
+        }
+
+        state "Admin Functions" as CAF {
+            setRewardNotifier
+            setEarningPowerCalculator
+        }
+    }
+
+    state DelegationSurrogate {
+        state "Per Delegatee" as PD {
+            HoldsTokens
+            DelegatesVotes
+        }
+    }
+
+    KS  --> DelegationSurrogate: Holds tokens per delegatee
+    DelegationSurrogate --> Delegatee: Delegates voting power
+    Admin --> CAF: e.g. governance
+
+    RewardNotifier --> ZkStaker: Tells ZkStaker about new rewards
+    EarningPowerCalculator --> ZkStaker: Calculates eligibility
+
+
+```
 
 ## Setup
 
-For development or deployment, you will first need to clone the repo and install dependencies. ZkStaker uses Hardhat and TypeScript for development, and Foundry for development / testing.
+Before getting started make sure you have Hardhat, Typescript, and [foundry-zksync](https://github.com/matter-labs/foundry-zksync) installed. Once those dependencies are ready follow the steps below.
 
 Clone the repo:
 
@@ -52,9 +98,9 @@ npm run clean
 
 ## Deployment
 
-To deploy the project, you will first need to set up your environtment variables via the `.env` file, and potentially change some constant values in the `DeployZkStaker.ts` deployment script.
+To deploy the project, you will first need to set up your environment variables via the `.env` file, and potentially change some constant values in the `DeployZkStaker.ts` deployment script.
 
-Environment Variables
+#### Environment Variables
 
 ```bash
 cp .env.template .env
@@ -65,9 +111,9 @@ The DEPLOYER_PRIVATE_KEY should be the private key of the wallet you want to use
 
 The ZKSYNC_RPC_URL should be the RPC URL of the ZkSync network you want to deploy to (e.g., ZkSync Era, ZkSync Testnet, etc.).
 
-Script Constants
+#### Script Constants
 
-In the `DeployZkStaker.ts` script, you can change the following constants:
+Before running `DeployZkStaker.ts` verify the below constants are set to the correct values. The current values reflect a mainnet deploy for the ZK Nation GovOps Governor.
 
 ```
 const REWARD_AMOUNT = "1000000000000000000";
@@ -76,9 +122,10 @@ const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; // Previously deployed ZK Capped Minter address
 const MAX_BUMP_TIP = 0;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // Limit to the total amount of ZK tokens that can be staked
+const STAKER_NAME = "ZkStaker";
 ```
 
-Deployment Execution
+#### Deployment Execution
 
 For the actual deployment, you will need to use Hardhat and TypeScript. Follow these steps:
 
