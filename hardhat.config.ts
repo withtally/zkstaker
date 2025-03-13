@@ -35,16 +35,13 @@ const config: HardhatUserConfig = {
     zkSyncLocal: {
       zksync: true,
       ethNetwork: "ethNetwork",
-      url: process.env.ZK_LOCAL_NETWORK_URL ? process.env.ZK_LOCAL_NETWORK_URL : "http://0.0.0.0:8011",
-    },
-    mainnet: {
-      zksync: false,
-      url: "https://eth-mainnet.g.alchemy.com/v2/SECRET",
+      url: "http://0.0.0.0:8011",
     },
     zkSyncEra: {
       zksync: true,
       ethNetwork: "mainnet",
-      url: "https://zksync-mainnet.g.alchemy.com/v2/SECRET",
+      // this should fail at runtime if the env variable is not set
+      url: process.env.ZKSYNC_RPC_URL ? process.env.ZKSYNC_RPC_URL : "http://",
     },
     zkSyncTestnet: {
       zksync: true,

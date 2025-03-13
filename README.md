@@ -1,159 +1,178 @@
-# ScopeLift Foundry Template
+# ZkStaker
 
-An opinionated template for [Foundry](https://github.com/foundry-rs/foundry) projects.
+ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZK Nation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
 
-_**Please read the full README before using this template.**_
-
-- [Usage](#usage)
 - [Overview](#overview)
-  - [`foundry.toml`](#foundrytoml)
-  - [CI](#ci)
-  - [Test Structure](#test-structure)
-- [Configuration](#configuration)
-  - [Coverage](#coverage)
-  - [Slither](#slither)
-  - [GitHub Code Scanning](#github-code-scanning)
-
-## Usage
-
-To use this template, use one of the below approaches:
-
-1. Run `forge init --template ScopeLift/foundry-template` in an empty directory.
-2. Click [here](https://github.com/ScopeLift/foundry-template/generate) to generate a new repository from this template.
-3. Click the "Use this template" button from this repo's [home page](https://github.com/ScopeLift/foundry-template).
-
-It's also recommend to install [scopelint](https://github.com/ScopeLift/scopelint), which is used in CI.
-You can run this locally with `scopelint fmt` and `scopelint check`.
-Note that these are supersets of `forge fmt` and `forge fmt --check`, so you do not need to run those forge commands when using scopelint.
+- [Setup](#setup)
+- [Development](#development)
+- [Deployment](#deployment)
+- [License](#license)
 
 ## Overview
 
-This template is designed to be a simple but powerful configuration for Foundry projects, that aims to help you follow Solidity and Foundry [best practices](https://book.getfoundry.sh/tutorials/best-practices)
-Writing secure contracts is hard, so it ships with strict defaults that you can loosen as needed.
+The staking system accepts user stake, delegates their voting power, and distributes rewards for eligible stakers.
 
-### `foundry.toml`
+```mermaid
 
-The `foundry.toml` config file comes with:
+stateDiagram-v2
+    direction TB
 
-- A `fmt` configuration.
-- `default`, `lite`, and `ci` profiles.
+    User --> CUF: Stakes tokens
 
-Both of these can of course be modified.
-The `default` and `ci` profiles use the same solc build settings, which are intended to be the production settings, but the `ci` profile is configured to run deeper fuzz and invariant tests.
-The `lite` profile turns the optimizer off, which is useful for speeding up compilation times during development.
+    state ZkStaker {
+        state "Key User Functions" as CUF {
+            stake --> claimReward
+            claimReward --> withdraw
+        }
 
-It's recommended to keep the solidity configuration of the `default` and `ci` profiles in sync, to avoid accidentally deploying contracts with suboptimal configuration settings when running `forge script`.
-This means you can change the solc settings in the `default` profile and the `lite` profile, but never for the `ci` profile.
+        state "Key State" as KS {
+            rewardRate
+            deposits
+        }
 
-Note that the `foundry.toml` file is formatted using [Taplo](https://taplo.tamasfe.dev/) via `scopelint fmt`.
+        state "Admin Functions" as CAF {
+            setRewardNotifier
+            setEarningPowerCalculator
+        }
+    }
 
-### CI
+    state DelegationSurrogate {
+        state "Per Delegatee" as PD {
+            HoldsTokens
+            DelegatesVotes
+        }
+    }
 
-Robust CI is also included, with a GitHub Actions workflow that does the following:
+    KS  --> DelegationSurrogate: Holds tokens per delegatee
+    DelegationSurrogate --> Delegatee: Delegates voting power
+    GovOps --> CAF: system admin
 
-- Runs tests with the `ci` profile.
-- Verifies contracts are within the [size limit](https://eips.ethereum.org/EIPS/eip-170) of 24576 bytes.
-- Runs `forge coverage` and verifies a minimum coverage threshold is met.
-- Runs `slither`, integrated with GitHub's [code scanning](https://docs.github.com/en/code-security/code-scanning). See the [Configuration](#configuration) section to learn more.
+    MintRewardNotifier --> ZkStaker: Mints capped minter rewards
+    IdentityEarningPowerCalculator --> ZkStaker: Determines stake rewards
 
-The CI also runs [scopelint](https://github.com/ScopeLift/scopelint) to verify formatting and best practices:
 
-- Checks that Solidity and TOML files have been formatted.
-  - Solidity checks use the `foundry.toml` config.
-  - Currently the TOML formatting cannot be customized.
-- Validates test names follow a convention of `test(Fork)?(Fuzz)?_(Revert(If_|When_){1})?\w{1,}`. [^naming-convention]
-- Validates constants and immutables are in `ALL_CAPS`.
-- Validates internal functions in `src/` start with a leading underscore.
-- Validates function names and visibility in forge scripts to 1 public `run` method per script. [^script-abi]
-
-Note that the foundry-toolchain GitHub Action will cache RPC responses in CI by default, and it will also update the cache when you update your fork tests.
-
-### Test Structure
-
-The test structure is configured to follow recommended [best practices](https://book.getfoundry.sh/tutorials/best-practices).
-It's strongly recommended to read that document, as it covers a range of aspects.
-Consequently, the test structure is as follows:
-
-- The core protocol deploy script is `script/Deploy.sol`.
-  This deploys the contracts and saves their addresses to storage variables.
-- The tests inherit from this deploy script and execute `Deploy.run()` in their `setUp` method.
-  This has the effect of running all tests against your deploy script, giving confidence that your deploy script is correct.
-- Each test contract serves as `describe` block to unit test a function, e.g. `contract Increment` to test the `increment` function.
-
-## Configuration
-
-After creating a new repository from this template, make sure to set any desired [branch protections](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches) on your repo.
-
-### Coverage
-
-The [`ci.yml`](.github/workflows/ci.yml) has `coverage` configured by default, and contains comments explaining how to modify the configuration.
-It uses:
-The [lcov] CLI tool to filter out the `test/` and `script/` folders from the coverage report.
-
-- The [romeovs/lcov-reporter-action](https://github.com/romeovs/lcov-reporter-action) action to post a detailed coverage report to the PR. Subsequent commits on the same branch will automatically delete stale coverage comments and post new ones.
-- The [zgosalvez/github-actions-report-lcov](https://github.com/zgosalvez/github-actions-report-lcov) action to fail coverage if a minimum coverage threshold is not met.
-
-Be aware of foundry's current coverage limitations:
-
-- You cannot filter files/folders from `forge` directly, so `lcov` is used to do this.
-- `forge coverage` always runs with the optimizer off and without via-ir, so if you need either of these to compile you will not be able to run coverage.
-
-Remember not to optimize for coverage, but to optimize for [well thought-out tests](https://book.getfoundry.sh/tutorials/best-practices?highlight=coverage#best-practices-1).
-
-### Slither
-
-In [`ci.yml`](.github/workflows/ci.yml), you'll notice Slither is configured as follows:
-
-```yml
-slither-args: --filter-paths "./lib|./test" --exclude naming-convention,solc-version
 ```
 
-This means Slither is not run on the `lib` or `test` folders, and the [`naming-convention`](https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions) and [solc-version](https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity) checks are disabled.
+## Setup
 
-This `slither-args` field is where you can change the Slither configuration for your project, and the defaults above can of course be changed.
+Before getting started make sure you have Hardhat, Typescript, and [foundry-zksync](https://github.com/matter-labs/foundry-zksync) installed. Once those dependencies are ready follow the steps below.
 
-Notice that Slither will run against `script/` by default.
-Carefully written and tested scripts are key to ensuring complex deployment and scripting pipelines execute as planned, but you are free to disable Slither checks on the scripts folder if it feels like overkill for your use case.
+Clone the repo:
 
-For more information on configuration Slither, see [the documentation](https://github.com/crytic/slither/wiki/Usage). For more information on configuring the slither action, see the [slither-action](https://github.com/crytic/slither-action) repo.
+```
+git clone https://github.com/withtally/zkstaker.git
+cd zk-staker
+```
 
-### GitHub Code Scanning
+Install the Foundry dependencies:
 
-As mentioned, the Slither CI step is integrated with GitHub's [code scanning](https://docs.github.com/en/code-security/code-scanning) feature.
-This means when your jobs execute, you'll see two related checks:
+```
+forge install
+```
 
-1. `CI / slither-analyze`
-2. `Code scanning results / Slither`
+Install the npm dependencies:
 
-The first check is the actual Slither analysis.
-You'll notice in the [`ci.yml`](.github/workflows/ci.yml) file that this check has a configuration of `fail-on: none`.
-This means this step will _never_ fail CI, no matter how many findings there are or what their severity is.
-Instead, this check outputs the findings to a SARIF file[^sarif] to be used in the next check.
+```
+npm install
+```
 
-The second check is the GitHub code scanning check.
-The `slither-analyze` job uploads the SARIF report to GitHub, which is then analyzed by GitHub's code scanning feature in this step.
-This is the check that will fail CI if there are Slither findings.
+## Development
 
-By default when you create a repository, only alerts with the severity level of `Error` will cause a pull request check failure, and checks will succeed with alerts of lower severities.
-However, you can [configure](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#defining-the-severities-causing-pull-request-check-failure) which level of slither results cause PR check failures.
+Build the contracts, with both `solc` and `zksolc`:
 
-It's recommended to conservatively set the failure level to `Any` to start, and to reduce the failure level if you are unable to sufficiently tune Slither or find it to be too noisy.
+```
+npm run compile
+```
 
-Findings are shown directly on the PR, as well as in your repo's "Security" tab, under the "Code scanning" section.
-Alerts that are dismissed are remembered by GitHub, and will not be shown again on future PRs.
+Run the tests (both the hardhat deployment test and foundry tests are run):
 
-Note that code scanning integration [only works](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/setting-up-code-scanning-for-a-repository) for public repos, or private repos with GitHub Enterprise Cloud and a license for GitHub Advanced Security.
-If you have a private repo and don't want to purchase a license, the best option is probably to:
+```
+npm run test
+```
 
-- Remove the `Upload SARIF file` step from CI.
-- Change the `Run Slither` step to `fail-on` whichever level you like, and remove the `sarif` output.
-- Use [triage mode](https://github.com/crytic/slither/wiki/Usage#triage-mode) locally and commit the resulting `slither.db.json` file, and make sure CI has access to that file.
+Clean build artifacts, from both `solc` and `zksolc`:
 
-[^naming-convention]:
-    A rigorous test naming convention is important for ensuring that tests are easy to understand and maintain, while also making filtering much easier.
-    For example, one benefit is filtering out all reverting tests when generating gas reports.
+```
+npm run clean
+```
 
-[^script-abi]: Limiting scripts to a single public method makes it easier to understand a script's purpose, and facilitates composability of simple, atomic scripts.
-[^sarif]:
-    [SARIF](https://sarifweb.azurewebsites.net/) (Static Analysis Results Interchange Format) is an industry standard for static analysis results.
-    You can read learn more about SARIF [here](https://github.com/microsoft/sarif-tutorials) and read about GitHub's SARIF support [here](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/sarif-support-for-code-scanning).
+## Deployment
+
+To deploy the project, you will first need to set up your environment variables via the `.env` file, and potentially change some constant values in the `DeployZkStaker.ts` deployment script.
+
+#### Environment Variables
+
+```bash
+cp .env.template .env
+# edit the .env to fill in values for DEPLOYER_PRIVATE_KEY and ZKSYNC_RPC_URL
+```
+
+The DEPLOYER_PRIVATE_KEY should be the private key of the wallet you want to use for deployment.
+
+The ZKSYNC_RPC_URL should be the RPC URL of the ZkSync network you want to deploy to (e.g., ZkSync Era, ZkSync Testnet, etc.).
+
+#### Script Constants
+
+Before running `DeployZkStaker.ts` verify the below constants are set to the correct values. The current values reflect a mainnet deploy for the ZK Nation GovOps Governor.
+
+```
+const REWARD_AMOUNT = "1000000000000000000";
+const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
+
+const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; // Previously deployed ZK Capped Minter address
+const MAX_BUMP_TIP = 0;
+const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // Limit to the total amount of ZK tokens that can be staked
+const STAKER_NAME = "ZkStaker";
+```
+
+#### Deployment Execution
+
+For the actual deployment, you will need to use Hardhat and TypeScript. Follow these steps:
+
+Compile the contracts:
+
+```bash
+npx hardhat compile
+```
+
+For an (optional) local deployment, start a local Hardhat node (in a separate terminal):
+
+```bash
+npx hardhat node-zksync
+```
+
+This will start a local ZkSync Era node for testing purposes.
+
+Deploy the contracts:
+
+```bash
+npx hardhat run script/DeployZkStaker.ts --network <network-name>
+```
+
+Make sure to replace `<network-name>` with the desired network (e.g., `zkSyncEra`, `zkSyncLocal`, etc.), which should be defined in your network settings in `hardhat.config.ts`.
+
+For a local deployment, use `zkSyncLocal` as the network-name:
+
+```bash
+npx hardhat run script/DeployZkStaker.ts --network zkSyncLocal
+```
+
+For a testnet deployment, use `zkSyncEraTestnet` as the network-name:
+
+```bash
+npx hardhat run script/DeployZkStaker.ts --network zkSyncEraTestnet
+```
+
+For a mainnet deployment, use `zkSyncEra` as the network-name
+
+```bash
+npx hardhat run script/DeployZkStaker.ts --network zkSyncEra
+```
+
+This will deploy the contracts to the specified network. Make sure you have enough funds in the wallet associated with `DEPLOYER_PRIVATE_KEY` to cover the deployment costs.
+
+If the `--network` flag is not specified, the default network will be used, which is defined in `hardhat.config.ts` as `zkSyncLocal`.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE-MIT) file for details.
