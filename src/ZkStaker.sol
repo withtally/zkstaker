@@ -9,6 +9,7 @@ import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IConsensusRegistry} from "src/IConsensusRegistry.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -47,6 +48,13 @@ contract ZkStaker is
   address public validatorStakeAuthority;
 
   uint256 public validatorWeightThreshold;
+
+  // TODO: determine how we will handle the possibility of launching staker when the registry
+  // contract has not yet been deployed, but the registry will be added later. Possibilities
+  // include making all calls to the registry contingent on 0-address check, or deploying
+  // a dummy registry that does nothing. How do either approaches interact with existing state
+  // regarding validators that may be on the staker when the real registry is added?
+  IConsensusRegistry public registry;
 
   // TODO: bikeshed the name AND figure out if we can use transient storage for this instead
   address public validatorForAtomicEarningPowerCalculation;
@@ -133,6 +141,29 @@ contract ZkStaker is
   function _setValidatorStakeAuthority(address _newAuthority) internal virtual {
     // TODO: Event emission
     validatorStakeAuthority = _newAuthority;
+  }
+
+  // PASS THROUGH METHODS
+  // --------------------
+
+  function changeValidatorLeader(address _validatorOwner, bool _isLeader) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.changeValidatorLeader(_validatorOwner, _isLeader);
+  }
+
+  function commitValidatorCommittee() external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.commitValidatorCommittee();
+  }
+
+  function setCommitteeActivationDelay(uint256 _delay) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.setCommitteeActivationDelay(_delay);
+  }
+
+  function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.updateLeaderSelection(_frequency, _weighted);
   }
 
   // SPIKE TODO: For every other method where earning power is recalculated, override the method, get
