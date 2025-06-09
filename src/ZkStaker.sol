@@ -46,6 +46,8 @@ contract ZkStaker is
 
   address public validatorStakeAuthority;
 
+  uint256 public validatorWeightThreshold;
+
   // TODO: bikeshed the name AND figure out if we can use transient storage for this instead
   address public validatorForAtomicEarningPowerCalculation;
 
@@ -65,7 +67,8 @@ contract ZkStaker is
     uint256 _initialTotalStakeCap,
     address _admin,
     string memory _name,
-    address _validatorStakeAuthority
+    address _validatorStakeAuthority,
+    uint256 _initialValidatorWeightThreshold
   )
     Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
     StakerPermitAndStake(_stakeToken)
@@ -75,8 +78,8 @@ contract ZkStaker is
   {
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
-    // TODO: Create admin only internal setter method, shared internal method, emit event, et...
-    validatorStakeAuthority = _validatorStakeAuthority;
+    _setValidatorStakeAuthority(_validatorStakeAuthority);
+    _setValidatorWeightThreshold(_initialValidatorWeightThreshold);
   }
 
   function validatorTotalWeight(address _validator) public virtual view returns (uint256) {
@@ -110,6 +113,26 @@ contract ZkStaker is
     _revertIfNotValidatorStakeAuthority();
     // TODO: Add event emission
     validatorBonusWeight[_validator] = _newBonusWeight;
+  }
+
+  function setValidatorStakeAuthority(address _newAuthority) external virtual {
+    _revertIfNotAdmin();
+    _setValidatorStakeAuthority(_newAuthority);
+  }
+
+  function setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) external virtual {
+    _revertIfNotAdmin();
+    _setValidatorWeightThreshold(_newValidatorWeightThreshold);
+  }
+
+  function _setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) internal virtual {
+    // TODO: Event emission
+    validatorWeightThreshold = _newValidatorWeightThreshold;
+  }
+
+  function _setValidatorStakeAuthority(address _newAuthority) internal virtual {
+    // TODO: Event emission
+    validatorStakeAuthority = _newAuthority;
   }
 
   // SPIKE TODO: For every other method where earning power is recalculated, override the method, get
