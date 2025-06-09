@@ -8,6 +8,7 @@ import {StakerDelegateSurrogateVotes} from "staker/extensions/StakerDelegateSurr
 import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -28,6 +29,20 @@ contract ZkStaker is
   StakerDelegateSurrogateVotes,
   StakerCapDeposits
 {
+  using SafeCast for uint256;
+
+  event ValidatorAltered(
+    Staker.DepositIdentifier indexed depositId,
+    address oldValidator,
+    address newValidator,
+    uint256 earningPower
+  );
+
+  mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
+
+  // TODO: bikeshed the name AND figure out if we can use transient storage for this instead
+  address public validatorForAtomicEarningPowerCalculation;
+
   /// @notice Initializes the ZkStaker contract with required parameters.
   /// @param _rewardsToken ERC20 token in which rewards will be denominated.
   /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
@@ -54,6 +69,50 @@ contract ZkStaker is
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
   }
+
+
+  function stake(uint256 _amount, address _delegatee, address _claimer, address _validator)
+    external
+    virtual
+    returns (Staker.DepositIdentifier _depositId)
+  {
+    validatorForAtomicEarningPowerCalculation = _validator;
+    _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
+    validatorForDeposit[_depositId] = _validator;
+    validatorForAtomicEarningPowerCalculation = address(0x0);
+  }
+
+  function alterValidator(Staker.DepositIdentifier _depositId, address _newValidator) external virtual {
+    validatorForAtomicEarningPowerCalculation = _newValidator;
+    Deposit storage deposit = deposits[_depositId];
+    _revertIfNotDepositOwner(deposit, msg.sender);
+    _alterValidator(deposit, _depositId, _newValidator);
+    validatorForAtomicEarningPowerCalculation = address(0x0);
+  }
+
+  // SPIKE TODO: For every other method where earning power is recalculated, override the method, get
+  // the deposit's validator out of storage, put it into the temp variable, call the super method,
+  // then clear the temp variable
+
+  function _alterValidator(Deposit storage deposit, Staker.DepositIdentifier _depositId, address _newValidator) internal virtual {
+    _checkpointGlobalReward();
+    _checkpointReward(deposit);
+
+    uint256 _newEarningPower =
+      earningPowerCalculator.getEarningPower(deposit.balance, deposit.owner, deposit.delegatee);
+
+    totalEarningPower =
+      _calculateTotalEarningPower(deposit.earningPower, _newEarningPower, totalEarningPower);
+    depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
+      deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
+    );
+
+    emit ValidatorAltered(_depositId, validatorForDeposit[_depositId], _newValidator, _newEarningPower);
+    validatorForDeposit[_depositId] = _newValidator;
+    deposit.earningPower = _newEarningPower.toUint96();
+  }
+
+  // TODO: Add signature based onBehalf methods for stake w/ validator & alterValidator
 
   /// @inheritdoc Staker
   /// @dev We override this function to resolve ambiguity between inherited contracts.
