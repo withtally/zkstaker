@@ -161,6 +161,18 @@ contract ZkStaker is
     registry.setCommitteeActivationDelay(_delay);
   }
 
+  function changeValidatorKey(
+        address _validatorOwner,
+        IConsensusRegistry.BLS12_381PublicKey calldata _pubKey,
+        IConsensusRegistry.BLS12_381Signature calldata _pop
+    ) external virtual {
+      if (msg.sender != _validatorOwner) {
+        _revertIfNotValidatorStakeAuthority();
+      }
+
+      registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
+  }
+
   function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
     _revertIfNotValidatorStakeAuthority();
     registry.updateLeaderSelection(_frequency, _weighted);
