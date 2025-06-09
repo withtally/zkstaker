@@ -42,6 +42,10 @@ contract ZkStaker is
 
   mapping(address validator => uint256 weight) public validatorStakeWeight;
 
+  mapping(address validator => uint256 weight) public validatorBonusWeight;
+
+  address public validatorStakeAuthority;
+
   // TODO: bikeshed the name AND figure out if we can use transient storage for this instead
   address public validatorForAtomicEarningPowerCalculation;
 
@@ -60,7 +64,8 @@ contract ZkStaker is
     uint256 _maxBumpTip,
     uint256 _initialTotalStakeCap,
     address _admin,
-    string memory _name
+    string memory _name,
+    address _validatorStakeAuthority
   )
     Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
     StakerPermitAndStake(_stakeToken)
@@ -70,8 +75,13 @@ contract ZkStaker is
   {
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
+    // TODO: Create admin only internal setter method, shared internal method, emit event, et...
+    validatorStakeAuthority = _validatorStakeAuthority;
   }
 
+  function validatorTotalWeight(address _validator) public virtual view returns (uint256) {
+    return (validatorStakeWeight[_validator] + validatorBonusWeight[_validator]);
+  }
 
   function stake(uint256 _amount, address _delegatee, address _claimer, address _validator)
     external
@@ -94,6 +104,12 @@ contract ZkStaker is
     _revertIfNotDepositOwner(deposit, msg.sender);
     _alterValidator(deposit, _depositId, _newValidator);
     validatorForAtomicEarningPowerCalculation = address(0x0);
+  }
+
+  function setBonusWeight(address _validator, uint256 _newBonusWeight) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    // TODO: Add event emission
+    validatorBonusWeight[_validator] = _newBonusWeight;
   }
 
   // SPIKE TODO: For every other method where earning power is recalculated, override the method, get
@@ -160,5 +176,12 @@ contract ZkStaker is
     returns (DepositIdentifier _depositId)
   {
     return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+  }
+
+  function _revertIfNotValidatorStakeAuthority() internal virtual {
+    if (msg.sender != validatorStakeAuthority) {
+      // TODO: define a proper error message or use existing authorization error message
+      revert();
+    }
   }
 }
