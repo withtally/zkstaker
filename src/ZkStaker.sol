@@ -28,6 +28,10 @@ contract ZkStaker is
   StakerDelegateSurrogateVotes,
   StakerCapDeposits
 {
+  mapping(Staker.DepositIdentifier depositId => address validator) public validators;
+
+  mapping(address validator => uint256 power) public validatorPower;
+
   /// @notice Initializes the ZkStaker contract with required parameters.
   /// @param _rewardsToken ERC20 token in which rewards will be denominated.
   /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
@@ -53,6 +57,46 @@ contract ZkStaker is
   {
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
+  }
+
+  function stake(uint256 _amount, address _delegatee, address _claimer, address _validator) external virtual returns (Staker.DepositIdentifier _depositId) {
+    // In pass-the-deposit-id Option 1: Predict the deposit ID and store the validator Here
+    _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
+    validators[_depositId] = _validator;
+    validatorPower[_validator] += _amount;
+    // In pass-the-deposit-id Option 2: Recalculate and update earning power here
+  }
+
+  function stakeMore(DepositIdentifier _depositId, uint256 _amount) external virtual override(Staker) {
+    // In Ed's Option: Put the validator into the tstore, do this in every method that calls the EPC
+    Deposit storage deposit = deposits[_depositId];
+    _revertIfNotDepositOwner(deposit, msg.sender);
+    _stakeMore(deposit, _depositId, _amount);
+    validatorPower[validators[_depositId]] += _amount;
+  }
+
+  function alterValidator(Staker.DepositIdentifier _depositId, address _newValidator) external virtual {
+    Deposit storage deposit = deposits[_depositId];
+    _revertIfNotDepositOwner(deposit, msg.sender);
+
+    uint256 _depositBalance = deposit.balance;
+    address _oldValidator = validators[_depositId];
+
+    validatorPower[_oldValidator] -= _depositBalance;
+    validatorPower[_newValidator] += _depositBalance;
+    validators[_depositId] = _newValidator;
+
+     // Updating the earning power here is not strictly necessary, but if the user is touching their
+    // deposit anyway, it seems reasonable to make sure their earning power is up to date.
+    uint256 _newEarningPower =
+      earningPowerCalculator.getEarningPower(_depositBalance, deposit.owner, deposit.delegatee);
+    totalEarningPower =
+      _calculateTotalEarningPower(deposit.earningPower, _newEarningPower, totalEarningPower);
+    depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
+      deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
+    );
+
+    deposit.earningPower = _newEarningPower.toUint96();
   }
 
   /// @inheritdoc Staker
