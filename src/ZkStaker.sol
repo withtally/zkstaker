@@ -40,6 +40,8 @@ contract ZkStaker is
 
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
+  mapping(address validator => uint256 weight) public validatorStakeWeight;
+
   // TODO: bikeshed the name AND figure out if we can use transient storage for this instead
   address public validatorForAtomicEarningPowerCalculation;
 
@@ -77,8 +79,12 @@ contract ZkStaker is
     returns (Staker.DepositIdentifier _depositId)
   {
     validatorForAtomicEarningPowerCalculation = _validator;
+
     _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
     validatorForDeposit[_depositId] = _validator;
+    validatorStakeWeight[_validator] += _amount;
+    // SPIKE TODO: event emission on weight change?
+
     validatorForAtomicEarningPowerCalculation = address(0x0);
   }
 
@@ -107,9 +113,40 @@ contract ZkStaker is
       deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
     );
 
-    emit ValidatorAltered(_depositId, validatorForDeposit[_depositId], _newValidator, _newEarningPower);
+    uint256 _depositBalance = deposit.balance;
+    address _oldValidator = validatorForDeposit[_depositId];
+
+    validatorStakeWeight[_oldValidator] -= _depositBalance;
+    validatorStakeWeight[_newValidator] += _depositBalance;
+
+    emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
     deposit.earningPower = _newEarningPower.toUint96();
+  }
+
+  function _withdraw(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
+    internal
+    virtual override(Staker) {
+      address _depositValidator = validatorForDeposit[_depositId];
+      validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+      validatorStakeWeight[_depositValidator] -= _amount;
+      Staker._withdraw(deposit, _depositId, _amount);
+
+      validatorForAtomicEarningPowerCalculation = address(0);
+    }
+
+  function _stakeMore(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
+    internal
+    virtual override(Staker, StakerCapDeposits)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+    validatorStakeWeight[_depositValidator] += _amount;
+    StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   // TODO: Add signature based onBehalf methods for stake w/ validator & alterValidator
@@ -123,15 +160,5 @@ contract ZkStaker is
     returns (DepositIdentifier _depositId)
   {
     return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
-  }
-
-  /// @inheritdoc Staker
-  /// @dev We override this function to resolve ambiguity between inherited contracts.
-  function _stakeMore(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
-    internal
-    virtual
-    override(Staker, StakerCapDeposits)
-  {
-    StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
   }
 }
