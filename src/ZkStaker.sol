@@ -39,6 +39,11 @@ contract ZkStaker is
     uint256 earningPower
   );
 
+  struct ValidatorKeys {
+    IConsensusRegistry.BLS12_381PublicKey pubKey;
+    IConsensusRegistry.BLS12_381Signature pop;
+  }
+
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
   mapping(address validator => uint256 weight) public validatorStakeWeight;
@@ -50,6 +55,8 @@ contract ZkStaker is
   uint256 public validatorWeightThreshold;
 
   bool public isLeaderDefault;
+
+  mapping(address validator => ValidatorKeys keys) registeredValidators;
 
   // TODO: determine how we will handle the possibility of launching staker when the registry
   // contract has not yet been deployed, but the registry will be added later. Possibilities
@@ -140,6 +147,22 @@ contract ZkStaker is
   function setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) external virtual {
     _revertIfNotAdmin();
     _setValidatorWeightThreshold(_newValidatorWeightThreshold);
+  }
+
+  function registerAsValidator(IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey, IConsensusRegistry.BLS12_381Signature calldata _validatorPoP) external virtual {
+    ValidatorKeys storage keys = registeredValidators[msg.sender];
+    // SPIKE TODO: figure out how to check if the keys are zero
+    if (false) {
+      // TODO: proper error
+      revert();
+    }
+
+    uint256 _weight = validatorTotalWeight(msg.sender);
+
+    if (_weight >= validatorWeightThreshold) {
+      // SPIKE TODO: figure out how/why weight is represented by a uint32
+      registry.add(msg.sender, isLeaderDefault, uint32(_weight), _validatorPubKey, _validatorPoP);
+    }
   }
 
   function _setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) internal virtual {
