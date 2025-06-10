@@ -49,6 +49,8 @@ contract ZkStaker is
 
   uint256 public validatorWeightThreshold;
 
+  bool public isLeaderDefault;
+
   // TODO: determine how we will handle the possibility of launching staker when the registry
   // contract has not yet been deployed, but the registry will be added later. Possibilities
   // include making all calls to the registry contingent on 0-address check, or deploying
@@ -76,7 +78,8 @@ contract ZkStaker is
     address _admin,
     string memory _name,
     address _validatorStakeAuthority,
-    uint256 _initialValidatorWeightThreshold
+    uint256 _initialValidatorWeightThreshold,
+    bool _initialIsLeaderDefault
   )
     Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
     StakerPermitAndStake(_stakeToken)
@@ -88,6 +91,7 @@ contract ZkStaker is
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
     _setValidatorStakeAuthority(_validatorStakeAuthority);
     _setValidatorWeightThreshold(_initialValidatorWeightThreshold);
+    _setIsLeaderDefault(_initialIsLeaderDefault);
   }
 
   function validatorTotalWeight(address _validator) public virtual view returns (uint256) {
@@ -123,6 +127,11 @@ contract ZkStaker is
     validatorBonusWeight[_validator] = _newBonusWeight;
   }
 
+  function setIsLeaderDefault(bool _newIsLeaderDefault) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    _setIsLeaderDefault(_newIsLeaderDefault);
+  }
+
   function setValidatorStakeAuthority(address _newAuthority) external virtual {
     _revertIfNotAdmin();
     _setValidatorStakeAuthority(_newAuthority);
@@ -141,6 +150,11 @@ contract ZkStaker is
   function _setValidatorStakeAuthority(address _newAuthority) internal virtual {
     // TODO: Event emission
     validatorStakeAuthority = _newAuthority;
+  }
+
+  function _setIsLeaderDefault(bool _newIsLeaderDefault) internal virtual {
+    // TODO: Event emission
+    isLeaderDefault = _newIsLeaderDefault;
   }
 
   // PASS THROUGH METHODS
