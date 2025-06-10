@@ -198,6 +198,10 @@ contract ZkStaker is
     registry.setCommitteeActivationDelay(_delay);
   }
 
+  // TODO CONSIDER: can the register & change validator key methods be collapsed into one? Should the
+  // validator authority be able to independently "register" a validator? If so, maybe we do not need
+  // a separate register method and we can simply allow the authority or validator to call this method
+  // to store their keys, effectively registering them.
   function changeValidatorKey(
         address _validatorOwner,
         IConsensusRegistry.BLS12_381PublicKey calldata _pubKey,
@@ -207,7 +211,19 @@ contract ZkStaker is
         _revertIfNotValidatorStakeAuthority();
       }
 
+      // SPIKE TODO: same check to make sure that validator is registered as needed
+      // in the register method
+      if (false) {
+        // TODO: proper error message
+        revert();
+      }
+
       registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
+
+      registeredValidators[_validatorOwner] = ValidatorKeys({
+        pubKey: _pubKey,
+        pop: _pop
+      });
   }
 
   function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
