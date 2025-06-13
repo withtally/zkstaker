@@ -101,7 +101,7 @@ contract ZkStaker is
     _setIsLeaderDefault(_initialIsLeaderDefault);
   }
 
-  function validatorTotalWeight(address _validator) public virtual view returns (uint256) {
+  function validatorTotalWeight(address _validator) public view virtual returns (uint256) {
     return (validatorStakeWeight[_validator] + validatorBonusWeight[_validator]);
   }
 
@@ -113,14 +113,22 @@ contract ZkStaker is
     validatorForAtomicEarningPowerCalculation = _validator;
 
     _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
-    validatorForDeposit[_depositId] = _validator;
-    validatorStakeWeight[_validator] += _amount;
+    if (_isValidatorRegistered(_validator)) {
+      validatorForDeposit[_depositId] = _validator;
+      validatorStakeWeight[_validator] += _amount;
+      _changeValidatorWeight(_validator, validatorTotalWeight(_validator));
+    }
     // SPIKE TODO: event emission on weight change?
 
     validatorForAtomicEarningPowerCalculation = address(0x0);
   }
 
-  function alterValidator(Staker.DepositIdentifier _depositId, address _newValidator) external virtual {
+  function alterValidator(Staker.DepositIdentifier _depositId, address _newValidator)
+    external
+    virtual
+  {
+    _revertIfValidatorIsNotRegistered(_newValidator);
+
     validatorForAtomicEarningPowerCalculation = _newValidator;
     Deposit storage deposit = deposits[_depositId];
     _revertIfNotDepositOwner(deposit, msg.sender);
@@ -132,6 +140,7 @@ contract ZkStaker is
     _revertIfNotValidatorStakeAuthority();
     // TODO: Add event emission
     validatorBonusWeight[_validator] = _newBonusWeight;
+    _changeValidatorWeight(_validator, validatorTotalWeight(_validator));
   }
 
   function setIsLeaderDefault(bool _newIsLeaderDefault) external virtual {
@@ -149,11 +158,15 @@ contract ZkStaker is
     _setValidatorWeightThreshold(_newValidatorWeightThreshold);
   }
 
-  function registerAsValidator(IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey, IConsensusRegistry.BLS12_381Signature calldata _validatorPoP) external virtual {
+  function registerAsValidator(
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) external virtual {
     ValidatorKeys storage keys = registeredValidators[msg.sender];
-    // SPIKE TODO: figure out how to check if the keys are zero
-    if (false) {
-      // TODO: proper error
+
+    // TODO: Check || condition is correct.
+    if (_isEmptyBLS12_381PublicKey(_keys.pubKey) || _isEmptyBLS12_381Signature(_keys.pop)) {
+      // TODO: add custom error
       revert();
     }
 
@@ -198,30 +211,24 @@ contract ZkStaker is
     registry.setCommitteeActivationDelay(_delay);
   }
 
-  // TODO CONSIDER: can the register & change validator key methods be collapsed into one? Should the
-  // validator authority be able to independently "register" a validator? If so, maybe we do not need
-  // a separate register method and we can simply allow the authority or validator to call this method
+  // TODO CONSIDER: can the register & change validator key methods be collapsed into one? Should
+  // the
+  // validator authority be able to independently "register" a validator? If so, maybe we do not
+  // need
+  // a separate register method and we can simply allow the authority or validator to call this
+  // method
   // to store their keys, effectively registering them.
   function changeValidatorKey(
-        address _validatorOwner,
-        IConsensusRegistry.BLS12_381PublicKey calldata _pubKey,
-        IConsensusRegistry.BLS12_381Signature calldata _pop
-    ) external virtual {
-      if (msg.sender != _validatorOwner) {
-        _revertIfNotValidatorStakeAuthority();
-      }
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _pubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _pop
+  ) external virtual {
+    if (msg.sender != _validatorOwner) _revertIfNotValidatorStakeAuthority();
+    _revertIfValidatorIsNotRegistered(_validatorOwner);
 
-      if (!_isValidatorRegistered(_validatorOwner)) {
-        // TODO: proper error message
-        revert();
-      }
+    registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
 
-      registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
-
-      registeredValidators[_validatorOwner] = ValidatorKeys({
-        pubKey: _pubKey,
-        pop: _pop
-      });
+    registeredValidators[_validatorOwner] = ValidatorKeys({pubKey: _pubKey, pop: _pop});
   }
 
   function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
@@ -229,11 +236,16 @@ contract ZkStaker is
     registry.updateLeaderSelection(_frequency, _weighted);
   }
 
-  // SPIKE TODO: For every other method where earning power is recalculated, override the method, get
+  // SPIKE TODO: For every other method where earning power is recalculated, override the method,
+  // get
   // the deposit's validator out of storage, put it into the temp variable, call the super method,
   // then clear the temp variable
 
-  function _alterValidator(Deposit storage deposit, Staker.DepositIdentifier _depositId, address _newValidator) internal virtual {
+  function _alterValidator(
+    Deposit storage deposit,
+    Staker.DepositIdentifier _depositId,
+    address _newValidator
+  ) internal virtual {
     _checkpointGlobalReward();
     _checkpointReward(deposit);
 
@@ -251,6 +263,8 @@ contract ZkStaker is
 
     validatorStakeWeight[_oldValidator] -= _depositBalance;
     validatorStakeWeight[_newValidator] += _depositBalance;
+    _changeValidatorWeight(_oldValidator, validatorTotalWeight(_oldValidator));
+    _changeValidatorWeight(_newValidator, validatorTotalWeight(_newValidator));
 
     emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
@@ -259,24 +273,29 @@ contract ZkStaker is
 
   function _withdraw(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
     internal
-    virtual override(Staker) {
-      address _depositValidator = validatorForDeposit[_depositId];
-      validatorForAtomicEarningPowerCalculation = _depositValidator;
+    virtual
+    override(Staker)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
 
-      validatorStakeWeight[_depositValidator] -= _amount;
-      Staker._withdraw(deposit, _depositId, _amount);
+    validatorStakeWeight[_depositValidator] -= _amount;
+    _changeValidatorWeight(_depositValidator, validatorTotalWeight(_depositValidator));
+    Staker._withdraw(deposit, _depositId, _amount);
 
-      validatorForAtomicEarningPowerCalculation = address(0);
-    }
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
 
   function _stakeMore(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
     internal
-    virtual override(Staker, StakerCapDeposits)
+    virtual
+    override(Staker, StakerCapDeposits)
   {
     address _depositValidator = validatorForDeposit[_depositId];
     validatorForAtomicEarningPowerCalculation = _depositValidator;
 
     validatorStakeWeight[_depositValidator] += _amount;
+    _changeValidatorWeight(_depositValidator, validatorTotalWeight(_depositValidator));
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
 
     validatorForAtomicEarningPowerCalculation = address(0);
@@ -298,19 +317,12 @@ contract ZkStaker is
   // NEXT TODO:
   // * Go back and use the `_isValidatorRegistered` method in appropriate places
   // * Call `_changeValidatorWeight` in all instances where a validators weight might change
-  function _changeValidatorWeight(address _validatorOwner, uint256 _newWeight)  internal virtual {
+  function _changeValidatorWeight(address _validatorOwner, uint256 _newWeight) internal virtual {
+    _revertIfValidatorIsNotRegistered(_validatorOwner);
     ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
-    if (!_isValidatorRegistered(_validatorOwner)) {
-      return;
-    }
-
-    // Change the weight on the registry
-    // TODO INVESTIGATE: should this be moved to a later point, contingent on the validator
-    // being in the registry? How does the registry actually behave?
-    registry.changeValidatorWeight(_validatorOwner, uint32(_newWeight));
 
     // Check if the validator is currently in the registry
-    IConsensusRegistry.Validator memory _validator  = registry.validators(_validatorOwner);
+    IConsensusRegistry.Validator memory _validator = registry.validators(_validatorOwner);
     bool _isInRegistry = !_validator.latest.removed;
     bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;
 
@@ -318,9 +330,11 @@ contract ZkStaker is
     if (!_isInRegistry && _isAboveThreshold) {
       registry.add(_validatorOwner, isLeaderDefault, uint32(_newWeight), _keys.pubKey, _keys.pop);
     }
-    // If the validator is below & in, remove them
-    if (_isInRegistry && !_isAboveThreshold) {
-      registry.remove(_validatorOwner);
+
+    if (_isInRegistry) {
+      registry.changeValidatorWeight(_validatorOwner, uint32(_newWeight));
+      // If the validator is below & in, remove them
+      if (!_isAboveThreshold) registry.remove(_validatorOwner);
     }
   }
 
@@ -329,12 +343,20 @@ contract ZkStaker is
     return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
   }
 
-  function _isEmptyBLS12_381PublicKey(IConsensusRegistry.BLS12_381PublicKey memory _pubKey) private pure returns (bool) {
-      return _pubKey.a == bytes32(0) && _pubKey.b == bytes32(0) && _pubKey.c == bytes32(0);
+  function _isEmptyBLS12_381PublicKey(IConsensusRegistry.BLS12_381PublicKey memory _pubKey)
+    private
+    pure
+    returns (bool)
+  {
+    return _pubKey.a == bytes32(0) && _pubKey.b == bytes32(0) && _pubKey.c == bytes32(0);
   }
 
-  function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop) private pure returns (bool) {
-      return _pop.a == bytes32(0) && _pop.b == bytes16(0);
+  function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop)
+    private
+    pure
+    returns (bool)
+  {
+    return _pop.a == bytes32(0) && _pop.b == bytes16(0);
   }
 
   function _revertIfNotValidatorStakeAuthority() internal virtual {
@@ -342,5 +364,10 @@ contract ZkStaker is
       // TODO: define a proper error message or use existing authorization error message
       revert();
     }
+  }
+
+  function _revertIfValidatorIsNotRegistered(address _validator) internal virtual {
+    // TODO: add custom error
+    if (!_isValidatorRegistered(_validator)) revert();
   }
 }
