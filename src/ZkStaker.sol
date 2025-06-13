@@ -211,9 +211,7 @@ contract ZkStaker is
         _revertIfNotValidatorStakeAuthority();
       }
 
-      // SPIKE TODO: same check to make sure that validator is registered as needed
-      // in the register method
-      if (false) {
+      if (!_isValidatorRegistered(_validatorOwner)) {
         // TODO: proper error message
         revert();
       }
@@ -297,12 +295,20 @@ contract ZkStaker is
     return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
   }
 
+  // NEXT TODO:
+  // * Go back and use the `_isValidatorRegistered` method in appropriate places
+  // * Call `_changeValidatorWeight` in all instances where a validators weight might change
   function _changeValidatorWeight(address _validatorOwner, uint256 _newWeight)  internal virtual {
     ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
-    // TODO: Return if not registered
+    if (!_isValidatorRegistered(_validatorOwner)) {
+      return;
+    }
 
     // Change the weight on the registry
+    // TODO INVESTIGATE: should this be moved to a later point, contingent on the validator
+    // being in the registry? How does the registry actually behave?
     registry.changeValidatorWeight(_validatorOwner, uint32(_newWeight));
+
     // Check if the validator is currently in the registry
     IConsensusRegistry.Validator memory _validator  = registry.validators(_validatorOwner);
     bool _isInRegistry = !_validator.latest.removed;
@@ -316,6 +322,19 @@ contract ZkStaker is
     if (_isInRegistry && !_isAboveThreshold) {
       registry.remove(_validatorOwner);
     }
+  }
+
+  function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
+    ValidatorKeys memory _keys = registeredValidators[_validator];
+    return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
+  }
+
+  function _isEmptyBLS12_381PublicKey(IConsensusRegistry.BLS12_381PublicKey memory _pubKey) private pure returns (bool) {
+      return _pubKey.a == bytes32(0) && _pubKey.b == bytes32(0) && _pubKey.c == bytes32(0);
+  }
+
+  function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop) private pure returns (bool) {
+      return _pop.a == bytes32(0) && _pop.b == bytes16(0);
   }
 
   function _revertIfNotValidatorStakeAuthority() internal virtual {
