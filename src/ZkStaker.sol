@@ -162,10 +162,8 @@ contract ZkStaker is
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) external virtual {
-    ValidatorKeys storage keys = registeredValidators[msg.sender];
-
     // TODO: Check || condition is correct.
-    if (_isEmptyBLS12_381PublicKey(_keys.pubKey) || _isEmptyBLS12_381Signature(_keys.pop)) {
+    if (_isEmptyBLS12_381PublicKey(_validatorPubKey) || _isEmptyBLS12_381Signature(_validatorPoP)) {
       // TODO: add custom error
       revert();
     }
