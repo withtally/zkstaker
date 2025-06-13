@@ -118,6 +118,8 @@ interface IConsensusRegistry {
     event CommitteeActivationDelayChanged(uint256 newDelay);
     event LeaderSelectionChanged(LeaderSelectionAttr newLeaderSelection);
 
+    function validators(address _validatorOwner)external returns (Validator memory _validator);
+
     /// @notice Adds a new validator to the registry.
     /// @dev Fails if validator owner already exists.
     /// @dev Fails if a validator with the same public key already exists.

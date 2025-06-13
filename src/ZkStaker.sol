@@ -297,6 +297,27 @@ contract ZkStaker is
     return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
   }
 
+  function _changeValidatorWeight(address _validatorOwner, uint256 _newWeight)  internal virtual {
+    ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
+    // TODO: Return if not registered
+
+    // Change the weight on the registry
+    registry.changeValidatorWeight(_validatorOwner, uint32(_newWeight));
+    // Check if the validator is currently in the registry
+    IConsensusRegistry.Validator memory _validator  = registry.validators(_validatorOwner);
+    bool _isInRegistry = !_validator.latest.removed;
+    bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;
+
+    // If the validator is above & not in, add them
+    if (!_isInRegistry && _isAboveThreshold) {
+      registry.add(_validatorOwner, isLeaderDefault, uint32(_newWeight), _keys.pubKey, _keys.pop);
+    }
+    // If the validator is below & in, remove them
+    if (_isInRegistry && !_isAboveThreshold) {
+      registry.remove(_validatorOwner);
+    }
+  }
+
   function _revertIfNotValidatorStakeAuthority() internal virtual {
     if (msg.sender != validatorStakeAuthority) {
       // TODO: define a proper error message or use existing authorization error message
