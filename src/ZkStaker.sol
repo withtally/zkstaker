@@ -162,11 +162,17 @@ contract ZkStaker is
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) external virtual {
+    // Revert if the validator is already registered
+    if (_isValidatorRegistered(msg.sender)) revert();
+
     // TODO: Check || condition is correct.
     if (_isEmptyBLS12_381PublicKey(_validatorPubKey) || _isEmptyBLS12_381Signature(_validatorPoP)) {
       // TODO: add custom error
       revert();
     }
+
+    // Store the keys in the registeredValidators mapping
+    registeredValidators[msg.sender] = ValidatorKeys({pubKey: _validatorPubKey, pop: _validatorPoP});
 
     uint256 _weight = validatorTotalWeight(msg.sender);
 
@@ -224,9 +230,8 @@ contract ZkStaker is
     if (msg.sender != _validatorOwner) _revertIfNotValidatorStakeAuthority();
     _revertIfValidatorIsNotRegistered(_validatorOwner);
 
-    registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
-
     registeredValidators[_validatorOwner] = ValidatorKeys({pubKey: _pubKey, pop: _pop});
+    registry.changeValidatorKey(_validatorOwner, _pubKey, _pop);
   }
 
   function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
