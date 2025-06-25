@@ -70,9 +70,6 @@ contract ZkStaker is
   /// @param _claimer The address that can claim rewards on behalf of the staker.
   /// @param _validator The address of the validator associated with the stake.
   /// @return _depositId The identifier of the created deposit.
-  /// @dev This function updates the validator's stake weight and emits an event if necessary.
-  /// It also temporarily sets the validator for atomic earning power calculation.
-  /// The function resolves ambiguity between inherited contracts by overriding the _stake function.
   function stake(uint256 _amount, address _delegatee, address _claimer, address _validator)
     external
     virtual
