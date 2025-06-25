@@ -28,6 +28,14 @@ contract ZkStaker is
   StakerDelegateSurrogateVotes,
   StakerCapDeposits
 {
+  /// @notice Maps a deposit identifier to the validator associated with it.
+  /// @dev This mapping is used to track the validator associated with each deposit.
+  mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
+
+  /// @notice Maps a validator to its stake weight.
+  /// @dev This mapping is used to track the stake weight for each validator.
+  mapping(address validator => uint256 weight) public validatorStakeWeight;
+
   /// @notice Initializes the ZkStaker contract with required parameters.
   /// @param _rewardsToken ERC20 token in which rewards will be denominated.
   /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
@@ -54,14 +62,6 @@ contract ZkStaker is
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
   }
-
-  /// @notice Maps a deposit identifier to the validator associated with it.
-  /// @dev This mapping is used to track the validator associated with each deposit.
-  mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
-
-  /// @notice Maps a validator to its stake weight.
-  /// @dev This mapping is used to track the stake weight for each validator.
-  mapping(address validator => uint256 weight) public validatorStakeWeight;
 
   /// @notice Allows a user to stake a specified amount of tokens, delegate voting power, and
   /// specify a validator.
