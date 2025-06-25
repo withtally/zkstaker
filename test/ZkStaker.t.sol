@@ -158,7 +158,7 @@ contract Constructor is ZkStakerTestBase {
 }
 
 contract Stake is ZkStakerTestBase {
-  function test_StakesTokensAndSetsValidatorAndValidatorStakeWeight(
+  function testFuzz_StakesTokensAndSetsValidatorAndValidatorStakeWeight(
     address _depositor,
     uint256 _amount,
     address _delegatee,
@@ -182,7 +182,7 @@ contract Stake is ZkStakerTestBase {
 }
 
 contract StakeMore is ZkStakerTestBase {
-  function test_StakesMoreTokensAndUpdatesValidatorStakeWeight(
+  function testFuzz_StakesMoreTokensAndUpdatesValidatorStakeWeight(
     address _depositor,
     uint256 _initialAmount,
     uint256 _amount,
