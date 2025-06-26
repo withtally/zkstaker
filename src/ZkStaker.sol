@@ -29,11 +29,9 @@ contract ZkStaker is
   StakerCapDeposits
 {
   /// @notice Maps a deposit identifier to the validator associated with it.
-  /// @dev This mapping is used to track the validator associated with each deposit.
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
   /// @notice Maps a validator to its stake weight.
-  /// @dev This mapping is used to track the stake weight for each validator.
   mapping(address validator => uint256 weight) public validatorStakeWeight;
 
   /// @notice Initializes the ZkStaker contract with required parameters.
