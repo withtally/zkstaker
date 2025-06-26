@@ -28,6 +28,12 @@ contract ZkStaker is
   StakerDelegateSurrogateVotes,
   StakerCapDeposits
 {
+  /// @notice Maps a deposit identifier to the validator associated with it.
+  mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
+
+  /// @notice Maps a validator to its stake weight.
+  mapping(address validator => uint256 weight) public validatorStakeWeight;
+
   /// @notice Initializes the ZkStaker contract with required parameters.
   /// @param _rewardsToken ERC20 token in which rewards will be denominated.
   /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
@@ -55,6 +61,27 @@ contract ZkStaker is
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
   }
 
+  /// @notice Allows a user to stake a specified amount of tokens, delegate voting power, and
+  /// specify a validator.
+  /// @param _amount The amount of tokens to stake.
+  /// @param _delegatee The address to which voting power is delegated.
+  /// @param _claimer The address that can claim rewards on behalf of the staker.
+  /// @param _validator The address of the validator associated with the stake.
+  /// @return _depositId The identifier of the created deposit.
+  function stake(uint256 _amount, address _delegatee, address _claimer, address _validator)
+    external
+    virtual
+    returns (Staker.DepositIdentifier _depositId)
+  {
+    // TODO: atomically store validator for earning power calculation.
+
+    _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
+    validatorForDeposit[_depositId] = _validator;
+    validatorStakeWeight[_validator] += _amount;
+
+    // TODO: Make changes in the registry.
+  }
+
   /// @inheritdoc Staker
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function _stake(address _depositor, uint256 _amount, address _delegatee, address _claimer)
@@ -73,6 +100,11 @@ contract ZkStaker is
     virtual
     override(Staker, StakerCapDeposits)
   {
+    address _depositValidator = validatorForDeposit[_depositId];
+    // TODO: atomically store validator for earning power calculation.
+    validatorStakeWeight[_depositValidator] += _amount;
+    // TODO: Make changes in the registry.
+
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
   }
 }

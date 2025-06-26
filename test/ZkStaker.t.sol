@@ -23,10 +23,20 @@ contract ZkStakerTestBase is Test {
     rewardToken = new ERC20Fake();
     govToken = new ERC20VotesMock();
     earningPowerCalculator = new MockFullEarningPowerCalculator();
-    admin = makeAddr("admin");
     maxBumpTip = 1e18;
     initialTotalStakeCap = 1e24;
+    admin = makeAddr("admin");
     name = "ZkStaker";
+
+    zkStaker = new ZkStaker(
+      IERC20(address(rewardToken)),
+      IERC20Staking(address(govToken)),
+      IEarningPowerCalculator(address(earningPowerCalculator)),
+      maxBumpTip,
+      initialTotalStakeCap,
+      admin,
+      name
+    );
   }
 
   /// @dev Helper function to validate addresses for fuzz tests
@@ -46,6 +56,28 @@ contract ZkStakerTestBase is Test {
     vm.assume(_rewardToken != _stakeToken);
     vm.assume(_rewardToken != _earningPowerCalculator);
     vm.assume(_stakeToken != _earningPowerCalculator);
+  }
+
+  function _boundAndMintGovToken(address _to, uint256 _amount) internal returns (uint256) {
+    vm.assume(_to != address(0));
+    _amount = bound(_amount, 0, zkStaker.totalStakeCap() - zkStaker.totalStaked());
+    govToken.mint(_to, _amount);
+    return _amount;
+  }
+
+  function _boundMintAndStake(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) internal returns (uint256 _boundedAmount, ZkStaker.DepositIdentifier _depositId) {
+    _boundedAmount = _boundAndMintGovToken(_depositor, _amount);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _boundedAmount);
+    _depositId = zkStaker.stake(_boundedAmount, _delegatee, _claimer, _validator);
+    vm.stopPrank();
   }
 }
 
@@ -122,5 +154,56 @@ contract Constructor is ZkStakerTestBase {
     (uint96 feeAmount, address feeCollector) = zkStaker.claimFeeParameters();
     assertEq(feeAmount, 0);
     assertEq(feeCollector, address(0));
+  }
+}
+
+contract Stake is ZkStakerTestBase {
+  function testFuzz_StakesTokensAndSetsValidatorAndValidatorStakeWeight(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    ZkStaker.DepositIdentifier _depositId =
+      zkStaker.stake(_amount, _delegatee, _claimer, _validator);
+    vm.stopPrank();
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    assertEq(zkStaker.validatorStakeWeight(_validator), _amount);
+  }
+}
+
+contract StakeMore is ZkStakerTestBase {
+  function testFuzz_StakesMoreTokensAndUpdatesValidatorStakeWeight(
+    address _depositor,
+    uint256 _initialAmount,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_initialAmount, _depositId) =
+      _boundMintAndStake(_depositor, _initialAmount, _delegatee, _claimer, _validator);
+
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stakeMore(_depositId, _amount);
+    vm.stopPrank();
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    assertEq(zkStaker.validatorStakeWeight(_validator), _initialAmount + _amount);
   }
 }
