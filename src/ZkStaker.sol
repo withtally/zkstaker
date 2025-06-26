@@ -8,6 +8,7 @@ import {StakerDelegateSurrogateVotes} from "staker/extensions/StakerDelegateSurr
 import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -28,6 +29,20 @@ contract ZkStaker is
   StakerDelegateSurrogateVotes,
   StakerCapDeposits
 {
+  using SafeCast for uint256;
+
+  /// @notice Emitted when a validator is altered.
+  /// @param depositId The deposit identifier of the altered validator.
+  /// @param oldValidator The address of the old validator.
+  /// @param newValidator The address of the new validator.
+  /// @param earningPower The earning power of the new validator.
+  event ValidatorAltered(
+    Staker.DepositIdentifier indexed depositId,
+    address oldValidator,
+    address newValidator,
+    uint256 earningPower
+  );
+
   /// @notice Maps a deposit identifier to the validator associated with it.
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
@@ -80,6 +95,52 @@ contract ZkStaker is
     validatorStakeWeight[_validator] += _amount;
 
     // TODO: Make changes in the registry.
+  }
+
+  /// @notice Allows a user to alter the validator associated with a deposit.
+  /// @param _depositId The deposit identifier of the deposit to alter.
+  /// @param _newValidator The address of the new validator.
+  /// @dev Reverts if the deposit is not owned by the caller.
+  function alterValidator(Staker.DepositIdentifier _depositId, address _newValidator)
+    external
+    virtual
+  {
+    // TODO: atomically store validator for earning power calculation.
+    Deposit storage deposit = deposits[_depositId];
+    _revertIfNotDepositOwner(deposit, msg.sender);
+    _alterValidator(deposit, _depositId, _newValidator);
+  }
+
+  /// @notice Allows a user to alter the validator associated with a deposit.
+  /// @param _depositId The deposit identifier of the deposit to alter.
+  /// @param _newValidator The address of the new validator.
+  function _alterValidator(
+    Deposit storage deposit,
+    Staker.DepositIdentifier _depositId,
+    address _newValidator
+  ) internal virtual {
+    _checkpointGlobalReward();
+    _checkpointReward(deposit);
+
+    uint256 _newEarningPower =
+      earningPowerCalculator.getEarningPower(deposit.balance, deposit.owner, deposit.delegatee);
+    totalEarningPower =
+      _calculateTotalEarningPower(deposit.earningPower, _newEarningPower, totalEarningPower);
+    depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
+      deposit.earningPower,   , depositorTotalEarningPower[deposit.owner]
+    );
+
+    uint256 _depositBalance = deposit.balance;
+    address _oldValidator = validatorForDeposit[_depositId];
+
+    validatorStakeWeight[_oldValidator] -= _depositBalance;
+    validatorStakeWeight[_newValidator] += _depositBalance;
+
+    // TODO: Make changes in the registry.
+
+    emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
+    validatorForDeposit[_depositId] = _newValidator;
+    deposit.earningPower = _newEarningPower.toUint96();
   }
 
   /// @inheritdoc Staker
