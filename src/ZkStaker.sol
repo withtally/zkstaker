@@ -127,7 +127,7 @@ contract ZkStaker is
     totalEarningPower =
       _calculateTotalEarningPower(deposit.earningPower, _newEarningPower, totalEarningPower);
     depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
-      deposit.earningPower,   , depositorTotalEarningPower[deposit.owner]
+      deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
     );
 
     uint256 _depositBalance = deposit.balance;
