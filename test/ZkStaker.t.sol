@@ -15,9 +15,11 @@ contract ZkStakerTestBase is Test {
   ZkStaker zkStaker;
 
   address admin;
+  address validatorStakeAuthority;
   uint256 maxBumpTip;
   uint256 initialTotalStakeCap;
   string name;
+  bool initialIsLeaderDefault;
 
   function setUp() public virtual {
     rewardToken = new ERC20Fake();
@@ -26,7 +28,9 @@ contract ZkStakerTestBase is Test {
     maxBumpTip = 1e18;
     initialTotalStakeCap = 1e24;
     admin = makeAddr("admin");
+    validatorStakeAuthority = makeAddr("validatorStakeAuthority");
     name = "ZkStaker";
+    initialIsLeaderDefault = true;
 
     zkStaker = new ZkStaker(
       IERC20(address(rewardToken)),
@@ -35,7 +39,9 @@ contract ZkStakerTestBase is Test {
       maxBumpTip,
       initialTotalStakeCap,
       admin,
-      name
+      validatorStakeAuthority,
+      name,
+      initialIsLeaderDefault
     );
   }
 
@@ -115,7 +121,9 @@ contract Constructor is ZkStakerTestBase {
       maxBumpTip,
       initialTotalStakeCap,
       admin,
-      name
+      validatorStakeAuthority,
+      name,
+      initialIsLeaderDefault
     );
 
     assertEq(address(zkStaker.REWARD_TOKEN()), address(rewardToken));
@@ -123,6 +131,7 @@ contract Constructor is ZkStakerTestBase {
     assertEq(address(zkStaker.earningPowerCalculator()), address(earningPowerCalculator));
     assertEq(zkStaker.maxBumpTip(), maxBumpTip);
     assertEq(zkStaker.admin(), admin);
+    assertEq(zkStaker.validatorStakeAuthority(), validatorStakeAuthority);
   }
 
   function testFuzz_SetsTheRewardTokenStakeTokenAndOwnerToArbitraryAddresses(
@@ -132,6 +141,7 @@ contract Constructor is ZkStakerTestBase {
     uint256 _maxBumpTip,
     uint256 _initialTotalStakeCap,
     address _admin,
+    address _validatorStakeAuthority,
     string memory _name
   ) public {
     _validateAddresses(_rewardToken, _stakeToken, _earningPowerCalculator, _admin);
@@ -143,7 +153,9 @@ contract Constructor is ZkStakerTestBase {
       _maxBumpTip,
       _initialTotalStakeCap,
       _admin,
-      _name
+      _validatorStakeAuthority,
+      _name,
+      initialIsLeaderDefault
     );
 
     assertEq(address(zkStaker.REWARD_TOKEN()), _rewardToken);
@@ -152,6 +164,7 @@ contract Constructor is ZkStakerTestBase {
     assertEq(zkStaker.maxBumpTip(), _maxBumpTip);
     assertEq(zkStaker.totalStakeCap(), _initialTotalStakeCap);
     assertEq(zkStaker.admin(), _admin);
+    assertEq(zkStaker.validatorStakeAuthority(), _validatorStakeAuthority);
   }
 
   function testFuzz_SetsClaimFeeParameters(
@@ -161,6 +174,7 @@ contract Constructor is ZkStakerTestBase {
     uint256 _maxBumpTip,
     uint256 _initialTotalStakeCap,
     address _admin,
+    address _validatorStakeAuthority,
     string memory _name
   ) public {
     _validateAddresses(_rewardToken, _stakeToken, _earningPowerCalculator, _admin);
@@ -172,7 +186,9 @@ contract Constructor is ZkStakerTestBase {
       _maxBumpTip,
       _initialTotalStakeCap,
       _admin,
-      _name
+      _validatorStakeAuthority,
+      _name,
+      initialIsLeaderDefault
     );
 
     assertEq(zkStaker.MAX_CLAIM_FEE(), 1e18);
@@ -486,5 +502,89 @@ contract AlterValidator is ZkStakerTestBase {
     assertEq(_deposit.earningPower, _fixedEarningPower);
     assertEq(zkStaker.totalEarningPower(), _fixedEarningPower);
     assertEq(zkStaker.depositorTotalEarningPower(_depositor), _fixedEarningPower);
+  }
+}
+
+contract SetValidatorStakeAuthority is ZkStakerTestBase {
+  function testFuzz_SetsValidatorStakeAuthority(address _newAuthority) public {
+    vm.prank(admin);
+    zkStaker.setValidatorStakeAuthority(_newAuthority);
+    assertEq(zkStaker.validatorStakeAuthority(), _newAuthority);
+  }
+
+  function testFuzz_EmitsValidatorStakeAuthoritySetEvent(address _newAuthority) public {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorStakeAuthoritySet(validatorStakeAuthority, _newAuthority);
+    vm.prank(admin);
+    zkStaker.setValidatorStakeAuthority(_newAuthority);
+  }
+
+  function testFuzz_RevertIf_NotAdmin(address _caller, address _newAuthority) public {
+    vm.assume(_caller != admin);
+    vm.expectRevert(
+      abi.encodeWithSelector(Staker.Staker__Unauthorized.selector, bytes32("not admin"), _caller)
+    );
+    vm.prank(_caller);
+    zkStaker.setValidatorStakeAuthority(_newAuthority);
+  }
+}
+
+contract SetBonusWeight is ZkStakerTestBase {
+  function testFuzz_SetsBonusWeight(address _validator, uint256 _newBonusWeight) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validator, _newBonusWeight);
+    assertEq(zkStaker.validatorBonusWeight(_validator), _newBonusWeight);
+  }
+
+  function testFuzz_EmitsValidatorBonusWeightSetEvent(address _validator, uint256 _newBonusWeight)
+    public
+  {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorBonusWeightSet(_validator, _newBonusWeight);
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validator, _newBonusWeight);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(
+    address _caller,
+    address _validator,
+    uint256 _newBonusWeight
+  ) public {
+    vm.assume(_caller != validatorStakeAuthority);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    vm.prank(_caller);
+    zkStaker.setBonusWeight(_validator, _newBonusWeight);
+  }
+}
+
+contract SetIsLeaderDefault is ZkStakerTestBase {
+  function testFuzz_SetsIsLeaderDefault(bool _isLeaderDefault) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setIsLeaderDefault(_isLeaderDefault);
+    assertEq(zkStaker.isLeaderDefault(), _isLeaderDefault);
+  }
+
+  function testFuzz_EmitsIsLeaderDefaultSetEvent(bool _isLeaderDefault) public {
+    vm.expectEmit();
+    emit ZkStaker.IsLeaderDefaultSet(zkStaker.isLeaderDefault(), _isLeaderDefault);
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setIsLeaderDefault(_isLeaderDefault);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, bool _isLeaderDefault)
+    public
+  {
+    vm.assume(_caller != validatorStakeAuthority);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    vm.prank(_caller);
+    zkStaker.setIsLeaderDefault(_isLeaderDefault);
   }
 }
