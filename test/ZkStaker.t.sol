@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ZkStaker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.sol";
+import {ZkStaker, Staker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
 import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
@@ -78,6 +78,31 @@ contract ZkStakerTestBase is Test {
     govToken.approve(address(zkStaker), _boundedAmount);
     _depositId = zkStaker.stake(_boundedAmount, _delegatee, _claimer, _validator);
     vm.stopPrank();
+  }
+
+  function _fetchDeposit(Staker.DepositIdentifier _depositId)
+    internal
+    view
+    returns (Staker.Deposit memory)
+  {
+    (
+      uint96 _balance,
+      address _owner,
+      uint96 _earningPower,
+      address _delegatee,
+      address _claimer,
+      uint256 _rewardPerTokenCheckpoint,
+      uint256 _scaledUnclaimedRewardCheckpoint
+    ) = zkStaker.deposits(_depositId);
+    return Staker.Deposit({
+      balance: _balance,
+      owner: _owner,
+      delegatee: _delegatee,
+      claimer: _claimer,
+      earningPower: _earningPower,
+      rewardPerTokenCheckpoint: _rewardPerTokenCheckpoint,
+      scaledUnclaimedRewardCheckpoint: _scaledUnclaimedRewardCheckpoint
+    });
   }
 }
 
@@ -209,7 +234,7 @@ contract StakeMore is ZkStakerTestBase {
 }
 
 contract AlterValidator is ZkStakerTestBase {
-  function testFuzz_AltersValidatorAndUpdatesValidatorStakeWeight(
+  function testFuzz_ChangesTheValidatorOfTheAssociatedDeposit(
     address _depositor,
     uint256 _amount,
     address _delegatee,
@@ -223,14 +248,57 @@ contract AlterValidator is ZkStakerTestBase {
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
       _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
 
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
 
     assertEq(zkStaker.validatorForDeposit(_depositId), _newValidator);
+  }
+
+  function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    vm.assume(_validator != _newValidator);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
     assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
     assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
+  }
+
+  function testFuzz_StakeWeightUnchangedIfValidatorUnchanged(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _validator);
+
+    assertEq(_previousValidatorStakeWeight, _amount);
+    assertEq(zkStaker.validatorStakeWeight(_validator), _amount);
   }
 
   function testFuzz_EmitsValidatorAlteredEvent(
@@ -252,5 +320,171 @@ contract AlterValidator is ZkStakerTestBase {
     emit ZkStaker.ValidatorAltered(_depositId, _validator, _newValidator, _amount);
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
+  }
+
+  function testFuzz_UpdatesDepositEarningPower(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint96 _newEarningPower
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    earningPowerCalculator.__setEarningPowerForDelegatee(_delegatee, _newEarningPower);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
+    Staker.Deposit memory _deposit = _fetchDeposit(_depositId);
+    assertEq(_deposit.earningPower, _newEarningPower);
+  }
+
+  function testFuzz_UpdatesGlobalTotalEarningPower(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint96 _newEarningPower
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    earningPowerCalculator.__setEarningPowerForDelegatee(_delegatee, _newEarningPower);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
+    assertEq(zkStaker.totalEarningPower(), _newEarningPower);
+  }
+
+  function testFuzz_UpdatesDepositorTotalEarningPower(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint96 _newEarningPower
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    earningPowerCalculator.__setEarningPowerForDelegatee(_delegatee, _newEarningPower);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
+    assertEq(zkStaker.depositorTotalEarningPower(_depositor), _newEarningPower);
+  }
+
+  function testFuzz_RevertIf_NotDepositOwner(
+    address _depositor,
+    address _notDepositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    vm.assume(_notDepositor != _depositor);
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not owner"), _notDepositor
+      )
+    );
+    vm.prank(_notDepositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+  }
+
+  function testFuzz_RevertIf_TheDepositIdentifierIsInvalid(
+    address _depositor,
+    Staker.DepositIdentifier _invalidDepositId,
+    address _newValidator
+  ) public {
+    vm.assume(_depositor != address(0));
+
+    vm.expectRevert(
+      abi.encodeWithSelector(Staker.Staker__Unauthorized.selector, bytes32("not owner"), _depositor)
+    );
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_invalidDepositId, _newValidator);
+  }
+
+  function testFuzz_SetsScaledEarningPowerWhenCalculatorScalesStakeAmount(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _multiplierBips
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _multiplierBips = bound(_multiplierBips, 0, 20_000);
+    earningPowerCalculator.__setMultiplierBips(_multiplierBips);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
+    uint256 _expectedEarningPower = (_amount * _multiplierBips) / 10_000;
+    Staker.Deposit memory _deposit = _fetchDeposit(_depositId);
+    assertEq(_deposit.earningPower, _expectedEarningPower);
+    assertEq(zkStaker.totalEarningPower(), _expectedEarningPower);
+    assertEq(zkStaker.depositorTotalEarningPower(_depositor), _expectedEarningPower);
+  }
+
+  function testFuzz_SetsFixedEarningPowerWhenCalculatorReturnsConstantAmount(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _fixedEarningPower
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _fixedEarningPower = bound(_fixedEarningPower, 0.1e18, 25_000_000e18);
+
+    earningPowerCalculator.__setFixedReturn(_fixedEarningPower);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+
+    Staker.Deposit memory _deposit = _fetchDeposit(_depositId);
+    assertEq(_deposit.earningPower, _fixedEarningPower);
+    assertEq(zkStaker.totalEarningPower(), _fixedEarningPower);
+    assertEq(zkStaker.depositorTotalEarningPower(_depositor), _fixedEarningPower);
   }
 }

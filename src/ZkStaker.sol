@@ -129,6 +129,7 @@ contract ZkStaker is
     depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
       deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
     );
+    deposit.earningPower = _newEarningPower.toUint96();
 
     uint256 _depositBalance = deposit.balance;
     address _oldValidator = validatorForDeposit[_depositId];
@@ -140,7 +141,6 @@ contract ZkStaker is
 
     emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
-    deposit.earningPower = _newEarningPower.toUint96();
   }
 
   /// @inheritdoc Staker
