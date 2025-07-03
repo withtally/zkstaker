@@ -679,3 +679,26 @@ contract SetValidatorWeightThreshold is ZkStakerTestBase {
     zkStaker.setValidatorWeightThreshold(_newValidatorWeightThreshold);
   }
 }
+
+contract ValidatorTotalWeight is ZkStakerTestBase {
+  function testFuzz_ValidatorTotalWeightCalculation(
+    address _depositor,
+    address _validator,
+    address _delegatee,
+    address _claimer,
+    uint256 _stakeWeight,
+    uint256 _bonusWeight
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    (uint256 boundedStakeWeight,) =
+      _boundMintAndStake(_depositor, _stakeWeight, _delegatee, _claimer, _validator);
+    _bonusWeight = bound(_bonusWeight, 0, type(uint256).max - boundedStakeWeight);
+
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validator, _bonusWeight);
+    uint256 expectedTotalWeight = boundedStakeWeight + _bonusWeight;
+
+    assertEq(zkStaker.validatorTotalWeight(_validator), expectedTotalWeight);
+  }
+}
