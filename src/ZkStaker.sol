@@ -53,6 +53,11 @@ contract ZkStaker is
   /// @param bonusWeight The new bonus weight of the validator.
   event ValidatorBonusWeightSet(address indexed validator, uint256 indexed bonusWeight);
 
+  /// @notice Emitted when the validator weight threshold is set.
+  /// @param oldThreshold The previous validator weight threshold.
+  /// @param newThreshold The new validator weight threshold.
+  event ValidatorWeightThresholdSet(uint256 oldThreshold, uint256 newThreshold);
+
   /// @notice Emitted when the state of `isLeaderDefault` is changed.
   /// @param oldIsLeaderDefault The previous state of the `isLeaderDefault`.
   /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
@@ -74,6 +79,9 @@ contract ZkStaker is
   /// setting committee activation delay, updating leader selection, and changing validator keys.
   address public validatorStakeAuthority;
 
+  /// @notice The minimum weight required for a validator to be considered active in the registry.
+  uint256 public validatorWeightThreshold;
+
   /// @notice The default value for the `isLeader` flag in the registry for actions that require it.
   bool public isLeaderDefault;
 
@@ -84,6 +92,12 @@ contract ZkStaker is
   /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power.
   /// @param _initialTotalStakeCap The initial maximum total stake allowed.
   /// @param _admin Address which will have permission to manage reward notifiers.
+  /// @param _validatorStakeAuthority Address managing validator bonus weights and registry
+  /// interactions.
+  /// @param _initialValidatorWeightThreshold The minimum weight required for a validator to be
+  /// considered active in the registry.
+  /// @param _initialIsLeaderDefault The default value for the `isLeader` flag in the registry for
+  /// actions that require it.
   /// @param _name Name used in the EIP712 domain separator for permit functionality.
   constructor(
     IERC20 _rewardsToken,
@@ -94,6 +108,7 @@ contract ZkStaker is
     address _admin,
     address _validatorStakeAuthority,
     string memory _name,
+    uint256 _initialValidatorWeightThreshold,
     bool _initialIsLeaderDefault
   )
     Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
@@ -105,6 +120,7 @@ contract ZkStaker is
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
     _setValidatorStakeAuthority(_validatorStakeAuthority);
+    _setValidatorWeightThreshold(_initialValidatorWeightThreshold);
     _setIsLeaderDefault(_initialIsLeaderDefault);
   }
 
@@ -149,6 +165,15 @@ contract ZkStaker is
   function setValidatorStakeAuthority(address _newAuthority) external virtual {
     _revertIfNotAdmin();
     _setValidatorStakeAuthority(_newAuthority);
+  }
+
+  /// @notice Updates the minimum weight required for a validator to be added to the registry.
+  /// @dev This function can only be called by the current admin.
+  /// @param _newValidatorWeightThreshold The new weight threshold for validators, which must be met
+  /// or exceeded for a validator to be considered active in the registry.
+  function setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) external virtual {
+    _revertIfNotAdmin();
+    _setValidatorWeightThreshold(_newValidatorWeightThreshold);
   }
 
   /// @notice Sets the bonus weight for a given validator.
@@ -233,6 +258,13 @@ contract ZkStaker is
   function _setValidatorStakeAuthority(address _newAuthority) internal virtual {
     emit ValidatorStakeAuthoritySet(validatorStakeAuthority, _newAuthority);
     validatorStakeAuthority = _newAuthority;
+  }
+
+  /// @notice Internal function to set the validator weight threshold.
+  /// @param _newValidatorWeightThreshold The new threshold value for validator weight.
+  function _setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) internal virtual {
+    emit ValidatorWeightThresholdSet(validatorWeightThreshold, _newValidatorWeightThreshold);
+    validatorWeightThreshold = _newValidatorWeightThreshold;
   }
 
   /// @notice Internal function to set the default leader status.

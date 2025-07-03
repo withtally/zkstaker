@@ -19,6 +19,7 @@ contract ZkStakerTestBase is Test {
   uint256 maxBumpTip;
   uint256 initialTotalStakeCap;
   string name;
+  uint256 initialValidatorWeightThreshold;
   bool initialIsLeaderDefault;
 
   function setUp() public virtual {
@@ -30,6 +31,7 @@ contract ZkStakerTestBase is Test {
     admin = makeAddr("admin");
     validatorStakeAuthority = makeAddr("validatorStakeAuthority");
     name = "ZkStaker";
+    initialValidatorWeightThreshold = 1e18;
     initialIsLeaderDefault = true;
 
     zkStaker = new ZkStaker(
@@ -41,6 +43,7 @@ contract ZkStakerTestBase is Test {
       admin,
       validatorStakeAuthority,
       name,
+      initialValidatorWeightThreshold,
       initialIsLeaderDefault
     );
   }
@@ -123,6 +126,7 @@ contract Constructor is ZkStakerTestBase {
       admin,
       validatorStakeAuthority,
       name,
+      initialValidatorWeightThreshold,
       initialIsLeaderDefault
     );
 
@@ -132,6 +136,7 @@ contract Constructor is ZkStakerTestBase {
     assertEq(zkStaker.maxBumpTip(), maxBumpTip);
     assertEq(zkStaker.admin(), admin);
     assertEq(zkStaker.validatorStakeAuthority(), validatorStakeAuthority);
+    assertEq(zkStaker.validatorWeightThreshold(), initialValidatorWeightThreshold);
   }
 
   function test_EmitsValidatorStakeAuthoritySetEvent() public {
@@ -146,6 +151,7 @@ contract Constructor is ZkStakerTestBase {
       admin,
       validatorStakeAuthority,
       name,
+      initialValidatorWeightThreshold,
       initialIsLeaderDefault
     );
   }
@@ -174,7 +180,9 @@ contract Constructor is ZkStakerTestBase {
     uint256 _initialTotalStakeCap,
     address _admin,
     address _validatorStakeAuthority,
-    string memory _name
+    string memory _name,
+    uint256 _initialValidatorWeightThreshold,
+    bool _initialIsLeaderDefault
   ) public {
     _validateAddresses(_rewardToken, _stakeToken, _earningPowerCalculator, _admin);
 
@@ -187,7 +195,8 @@ contract Constructor is ZkStakerTestBase {
       _admin,
       _validatorStakeAuthority,
       _name,
-      initialIsLeaderDefault
+      _initialValidatorWeightThreshold,
+      _initialIsLeaderDefault
     );
 
     assertEq(address(zkStaker.REWARD_TOKEN()), _rewardToken);
@@ -197,6 +206,7 @@ contract Constructor is ZkStakerTestBase {
     assertEq(zkStaker.totalStakeCap(), _initialTotalStakeCap);
     assertEq(zkStaker.admin(), _admin);
     assertEq(zkStaker.validatorStakeAuthority(), _validatorStakeAuthority);
+    assertEq(zkStaker.validatorWeightThreshold(), _initialValidatorWeightThreshold);
   }
 
   function testFuzz_SetsClaimFeeParameters(
@@ -207,7 +217,9 @@ contract Constructor is ZkStakerTestBase {
     uint256 _initialTotalStakeCap,
     address _admin,
     address _validatorStakeAuthority,
-    string memory _name
+    string memory _name,
+    uint256 _initialValidatorWeightThreshold,
+    bool _initialIsLeaderDefault
   ) public {
     _validateAddresses(_rewardToken, _stakeToken, _earningPowerCalculator, _admin);
 
@@ -220,7 +232,8 @@ contract Constructor is ZkStakerTestBase {
       _admin,
       _validatorStakeAuthority,
       _name,
-      initialIsLeaderDefault
+      _initialValidatorWeightThreshold,
+      _initialIsLeaderDefault
     );
 
     assertEq(zkStaker.MAX_CLAIM_FEE(), 1e18);
@@ -618,5 +631,33 @@ contract SetIsLeaderDefault is ZkStakerTestBase {
     );
     vm.prank(_caller);
     zkStaker.setIsLeaderDefault(_isLeaderDefault);
+  }
+}
+
+contract SetValidatorWeightThreshold is ZkStakerTestBase {
+  function testFuzz_SetsValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) public {
+    vm.prank(admin);
+    zkStaker.setValidatorWeightThreshold(_newValidatorWeightThreshold);
+    assertEq(zkStaker.validatorWeightThreshold(), _newValidatorWeightThreshold);
+  }
+
+  function testFuzz_EmitsValidatorWeightThresholdSetEvent(uint256 _newValidatorWeightThreshold)
+    public
+  {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorWeightThresholdSet(
+      zkStaker.validatorWeightThreshold(), _newValidatorWeightThreshold
+    );
+    vm.prank(admin);
+    zkStaker.setValidatorWeightThreshold(_newValidatorWeightThreshold);
+  }
+
+  function testFuzz_RevertIf_NotAdmin(address _caller, uint256 _newValidatorWeightThreshold) public {
+    vm.assume(_caller != admin);
+    vm.expectRevert(
+      abi.encodeWithSelector(Staker.Staker__Unauthorized.selector, bytes32("not admin"), _caller)
+    );
+    vm.prank(_caller);
+    zkStaker.setValidatorWeightThreshold(_newValidatorWeightThreshold);
   }
 }
