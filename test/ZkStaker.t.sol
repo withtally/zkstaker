@@ -279,7 +279,7 @@ contract AlterValidator is ZkStakerTestBase {
     assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
-  function testFuzz_StakeWeightUnchangedIfValidatorUnchanged(
+  function testFuzz_AllowsTheDepositorToReiterateTheirExistingValidator(
     address _depositor,
     uint256 _amount,
     address _delegatee,
