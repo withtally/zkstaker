@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+zkout/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -17,3 +18,12 @@ lcov.info
 .vscode
 .idea
 node_modules
+
+# Artifacts
+artifacts-zk/
+
+# Cache
+cache_hardhat-zk/
+
+# Typechain
+typechain-types/
