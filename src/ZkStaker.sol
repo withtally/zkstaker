@@ -53,9 +53,9 @@ contract ZkStaker is
   /// @param bonusWeight The new bonus weight of the validator.
   event ValidatorBonusWeightSet(address indexed validator, uint256 indexed bonusWeight);
 
-  /// @notice Emitted when the default validator is set.
-  /// @param oldIsLeaderDefault The old value of the default validator.
-  /// @param newIsLeaderDefault The new value of the default validator.
+  /// @notice Emitted when the state of `isLeaderDefault` is changed.
+  /// @param oldIsLeaderDefault The previous state of the `isLeaderDefault`.
+  /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
   event IsLeaderDefaultSet(bool oldIsLeaderDefault, bool newIsLeaderDefault);
 
   /// @notice Maps a deposit identifier to the validator associated with it.
@@ -67,10 +67,14 @@ contract ZkStaker is
   /// @notice Maps a validator to its bonus weight.
   mapping(address validator => uint256 weight) public validatorBonusWeight;
 
-  /// @notice The address responsible for managing validator bonus weight.
+  /// @notice Address managing validator bonus weights and registry interactions.
+  /// @dev The authority can set bonus weights for validators and execute registry operations such
+  /// as changing validator leadership and committee settings. It includes pass-through methods for
+  /// registry interactions like changing validator leadership, committing the validator committee,
+  /// setting committee activation delay, updating leader selection, and changing validator keys.
   address public validatorStakeAuthority;
 
-  /// @notice Whether the default validator is the leader.
+  /// @notice The default value for the `isLeader` flag in the registry for actions that require it.
   bool public isLeaderDefault;
 
   /// @notice Initializes the ZkStaker contract with required parameters.

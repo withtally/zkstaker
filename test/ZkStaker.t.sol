@@ -134,6 +134,22 @@ contract Constructor is ZkStakerTestBase {
     assertEq(zkStaker.validatorStakeAuthority(), validatorStakeAuthority);
   }
 
+  function test_EmitsValidatorStakeAuthoritySetEvent() public {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorStakeAuthoritySet(address(0), validatorStakeAuthority);
+    zkStaker = new ZkStaker(
+      IERC20(address(rewardToken)),
+      IERC20Staking(address(govToken)),
+      IEarningPowerCalculator(address(earningPowerCalculator)),
+      maxBumpTip,
+      initialTotalStakeCap,
+      admin,
+      validatorStakeAuthority,
+      name,
+      initialIsLeaderDefault
+    );
+  }
+
   function testFuzz_SetsTheRewardTokenStakeTokenAndOwnerToArbitraryAddresses(
     address _rewardToken,
     address _stakeToken,
