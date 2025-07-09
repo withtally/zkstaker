@@ -25,6 +25,7 @@ const MAX_BUMP_TIP = 0;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODO: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
 const VALIDATOR_STAKE_AUTHORITY = "0x0000000000000000000000000000000000000000"; // TODO: Update this value (placeholder for now)
+const INITIAL_VALIDATOR_WEIGHT_THRESHOLD = 0; // TODO: Update this value (placeholder for now)
 const IS_LEADER_DEFAULT = true; // TODO: Verify this value (placeholder for now)
 
 
@@ -52,7 +53,7 @@ async function main() {
   // Deploy ZkStaker contract using create
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
-  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, earningPowerCalculaterContractAddress, MAX_BUMP_TIP, INITIAL_TOTAL_STAKE_CAP, zkWallet.address, VALIDATOR_STAKE_AUTHORITY, STAKER_NAME, IS_LEADER_DEFAULT];
+  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, earningPowerCalculaterContractAddress, MAX_BUMP_TIP, INITIAL_TOTAL_STAKE_CAP, zkWallet.address, VALIDATOR_STAKE_AUTHORITY, STAKER_NAME, INITIAL_VALIDATOR_WEIGHT_THRESHOLD, IS_LEADER_DEFAULT];
   const zkStaker = await deployer.deploy(zkStakerContractArtifact, constructorArgs, "create", undefined);
   await zkStaker.deploymentTransaction()?.wait();
   const zkStakerContractAddress = await zkStaker.getAddress();
