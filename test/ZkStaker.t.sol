@@ -168,6 +168,24 @@ contract Constructor is ZkStakerTestBase {
       admin,
       validatorStakeAuthority,
       name,
+      initialValidatorWeightThreshold,
+      initialIsLeaderDefault
+    );
+  }
+
+  function test_EmitsValidatorWeightThresholdSetEvent() public {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorWeightThresholdSet(0, initialValidatorWeightThreshold);
+    zkStaker = new ZkStaker(
+      IERC20(address(rewardToken)),
+      IERC20Staking(address(govToken)),
+      IEarningPowerCalculator(address(earningPowerCalculator)),
+      maxBumpTip,
+      initialTotalStakeCap,
+      admin,
+      validatorStakeAuthority,
+      name,
+      initialValidatorWeightThreshold,
       initialIsLeaderDefault
     );
   }
