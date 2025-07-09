@@ -150,6 +150,22 @@ contract Constructor is ZkStakerTestBase {
     );
   }
 
+  function test_EmitsIsLeaderDefaultSetEvent() public {
+    vm.expectEmit();
+    emit ZkStaker.IsLeaderDefaultSet(false, initialIsLeaderDefault);
+    zkStaker = new ZkStaker(
+      IERC20(address(rewardToken)),
+      IERC20Staking(address(govToken)),
+      IEarningPowerCalculator(address(earningPowerCalculator)),
+      maxBumpTip,
+      initialTotalStakeCap,
+      admin,
+      validatorStakeAuthority,
+      name,
+      initialIsLeaderDefault
+    );
+  }
+
   function testFuzz_SetsTheRewardTokenStakeTokenAndOwnerToArbitraryAddresses(
     address _rewardToken,
     address _stakeToken,
