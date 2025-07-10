@@ -9,6 +9,7 @@ import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IConsensusRegistry} from "src/interfaces/IConsensusRegistry.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -63,6 +64,20 @@ contract ZkStaker is
   /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
   event IsLeaderDefaultSet(bool oldIsLeaderDefault, bool newIsLeaderDefault);
 
+  /// @notice Emitted when a validator is already registered.
+  error ValidatorAlreadyRegistered();
+
+  /// @notice Emitted when the validator keys are invalid.
+  error InvalidValidatorKeys();
+
+  /// @notice Struct to store the validator keys.
+  /// @param pubKey The BLS12-381 public key of the validator.
+  /// @param pop The BLS12-381 signature of the validator.
+  struct ValidatorKeys {
+    IConsensusRegistry.BLS12_381PublicKey pubKey;
+    IConsensusRegistry.BLS12_381Signature pop;
+  }
+
   /// @notice Maps a deposit identifier to the validator associated with it.
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
@@ -71,6 +86,13 @@ contract ZkStaker is
 
   /// @notice Maps a validator to its bonus weight.
   mapping(address validator => uint256 weight) public validatorBonusWeight;
+
+  /// @notice Maps a validator address to its corresponding BLS12-381 public key and proof of
+  /// possession signature.
+  mapping(address validator => ValidatorKeys keys) public registeredValidators;
+
+  /// @notice The consensus registry interface used for validator operations.
+  IConsensusRegistry public registry;
 
   /// @notice Address managing validator bonus weights and registry interactions.
   /// @dev The authority can set bonus weights for validators and execute registry operations such
@@ -202,6 +224,65 @@ contract ZkStaker is
     _setIsLeaderDefault(_isLeaderDefault);
   }
 
+  /// @notice Registers or changes the validator key for a given validator owner.
+  /// @dev This function can be called by the validator owner or the validator stake authority.
+  /// It checks for valid BLS12-381 public key and signature before proceeding.
+  /// If a registry is set, it updates the registry with the new validator key.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @param _validatorPubKey The BLS12-381 public key of the validator.
+  /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
+  function registerOrChangeValidatorKey(
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) external virtual {
+    if (msg.sender != _validatorOwner) _revertIfNotValidatorStakeAuthority();
+    if (_isEmptyBLS12_381PublicKey(_validatorPubKey) || _isEmptyBLS12_381Signature(_validatorPoP)) {
+      revert InvalidValidatorKeys();
+    }
+
+    _setValidatorKeys(_validatorOwner, _validatorPubKey, _validatorPoP);
+    if (address(registry) != address(0)) {
+      _registerOrChangeValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+    }
+  }
+
+  /// @notice Sets the validator keys for a given validator owner.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @param _validatorPubKey The BLS12-381 public key of the validator.
+  /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
+  function _setValidatorKeys(
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) internal virtual {
+    registeredValidators[_validatorOwner] =
+      ValidatorKeys({pubKey: _validatorPubKey, pop: _validatorPoP});
+  }
+
+  /// @notice Registers or changes the validator key on the registry.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @param _validatorPubKey The BLS12-381 public key of the validator.
+  /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
+  function _registerOrChangeValidatorKeyOnTheRegistry(
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) internal virtual {
+    IConsensusRegistry.Validator memory _validator = registry.validators(_validatorOwner);
+    bool _isInRegistry = !_validator.latest.removed;
+    uint256 _weight = validatorTotalWeight(_validatorOwner);
+    bool _isAboveThreshold = _weight >= validatorWeightThreshold;
+
+    if (!_isInRegistry && _isAboveThreshold) {
+      registry.add(
+        _validatorOwner, isLeaderDefault, uint32(_weight), _validatorPubKey, _validatorPoP
+      );
+    } else if (_isInRegistry) {
+      registry.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+    }
+  }
+
   /// @notice Allows a user to alter the validator associated with a deposit.
   /// @param _depositId The deposit identifier of the deposit to alter.
   /// @param _newValidator The address of the new validator.
@@ -286,5 +367,37 @@ contract ZkStaker is
     if (msg.sender != validatorStakeAuthority) {
       revert Staker__Unauthorized("not validator stake authority", msg.sender);
     }
+  }
+
+  /// @notice Checks if a validator is registered.
+  /// @dev A validator is considered registered if both its BLS12-381 public key and proof of
+  /// possession signature are non-empty.
+  /// @param _validator The address of the validator to check.
+  /// @return True if the validator is registered, false otherwise.
+  function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
+    ValidatorKeys memory _keys = registeredValidators[_validator];
+    return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
+  }
+
+  /// @notice Checks if a BLS12-381 public key is empty.
+  /// @param _pubKey The BLS12-381 public key to check.
+  /// @return True if the public key is empty, false otherwise.
+  function _isEmptyBLS12_381PublicKey(IConsensusRegistry.BLS12_381PublicKey memory _pubKey)
+    private
+    pure
+    returns (bool)
+  {
+    return _pubKey.a == bytes32(0) && _pubKey.b == bytes32(0) && _pubKey.c == bytes32(0);
+  }
+
+  /// @notice Checks if a BLS12-381 signature is empty.
+  /// @param _pop The BLS12-381 signature to check.
+  /// @return True if the signature is empty, false otherwise.
+  function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop)
+    private
+    pure
+    returns (bool)
+  {
+    return _pop.a == bytes32(0) && _pop.b == bytes16(0);
   }
 }

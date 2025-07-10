@@ -10,3 +10,7 @@
 [submodule "lib/staker"]
 	path = lib/staker
 	url = https://github.com/withtally/staker
+[submodule "lib/era-contracts"]
+	path = lib/era-contracts
+	url = https://github.com/matter-labs/era-contracts
+	branch = consensus-registry

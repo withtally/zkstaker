@@ -7,6 +7,7 @@ import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
 import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
 import {MockFullEarningPowerCalculator} from "staker-test/mocks/MockFullEarningPowerCalculator.sol";
+import {IConsensusRegistry} from "src/interfaces/IConsensusRegistry.sol";
 
 contract ZkStakerTestBase is Test {
   ERC20Fake rewardToken;
@@ -734,5 +735,89 @@ contract ValidatorTotalWeight is ZkStakerTestBase {
     uint256 expectedTotalWeight =
       boundedInitialStakeWeight + boundedAdditionalStakeWeight + _newBonusWeight;
     assertEq(zkStaker.validatorTotalWeight(_validator), expectedTotalWeight);
+  }
+}
+
+contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
+  function _assumeValidKeys(
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) internal pure {
+    vm.assume(
+      _validatorPubKey.a != bytes32(0) && _validatorPubKey.b != bytes32(0)
+        && _validatorPubKey.c != bytes32(0)
+    );
+    vm.assume(_validatorPoP.a != bytes32(0) && _validatorPoP.b != bytes16(0));
+  }
+
+  function testFuzz_RegisterAsValidator(
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.prank(_validator);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+
+    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+
+    (
+      IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
+      IConsensusRegistry.BLS12_381Signature memory _pop
+    ) = zkStaker.registeredValidators(_validator);
+    assertEq(_pubKey.a, _validatorPubKey.a);
+    assertEq(_pubKey.b, _validatorPubKey.b);
+    assertEq(_pubKey.c, _validatorPubKey.c);
+    assertEq(_pop.a, _validatorPoP.a);
+    assertEq(_pop.b, _validatorPoP.b);
+  }
+
+  function testFuzz_RegistersValidatorAsValidatorStakeAuthority(
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_validator != validatorStakeAuthority);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+
+    vm.prank(validatorStakeAuthority);
+    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+
+    (
+      IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
+      IConsensusRegistry.BLS12_381Signature memory _pop
+    ) = zkStaker.registeredValidators(_validator);
+    assertEq(_pubKey.a, _validatorPubKey.a);
+    assertEq(_pubKey.b, _validatorPubKey.b);
+    assertEq(_pubKey.c, _validatorPubKey.c);
+    assertEq(_pop.a, _validatorPoP.a);
+    assertEq(_pop.b, _validatorPoP.b);
+  }
+
+  function testFuzz_RevertIf_NotOwnerAndNotValidatorStakeAuthority(
+    address _caller,
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_caller != _validator && _caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+  }
+
+  function testFuzz_RevertIf_InvalidKeys(address _validator) public {
+    IConsensusRegistry.BLS12_381PublicKey memory _emptyPubKey =
+      IConsensusRegistry.BLS12_381PublicKey({a: bytes32(0), b: bytes32(0), c: bytes32(0)});
+    IConsensusRegistry.BLS12_381Signature memory _emptyPoP =
+      IConsensusRegistry.BLS12_381Signature({a: bytes32(0), b: bytes16(0)});
+
+    vm.prank(_validator);
+    vm.expectRevert(abi.encodeWithSelector(ZkStaker.InvalidValidatorKeys.selector));
+    zkStaker.registerOrChangeValidatorKey(_validator, _emptyPubKey, _emptyPoP);
   }
 }
