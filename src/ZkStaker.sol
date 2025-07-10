@@ -209,6 +209,14 @@ contract ZkStaker is
     // TODO: Make changes in the registry.
   }
 
+  /// @notice Sets the consensus registry for the ZkStaker contract.
+  /// @dev This function can only be called by the current admin.
+  /// @param _registry The new consensus registry to set.
+  function setRegistry(IConsensusRegistry _registry) external virtual {
+    _revertIfNotAdmin();
+    registry = _registry;
+  }
+
   /// @notice Returns the total weight of a validator, including both stake and bonus weights.
   /// @param _validator The address of the validator to calculate the total weight for.
   /// @return The total weight of the validator, which is the sum of its stake and bonus weights.
