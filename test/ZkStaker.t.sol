@@ -899,29 +899,6 @@ contract AlterValidator is ZkStakerTestBase {
     zkStaker.alterValidator(_depositId, _newValidator);
   }
 
-  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
-    address _depositor,
-    uint256 _amount,
-    address _delegatee,
-    address _claimer,
-    address _validator,
-    address _newValidator
-  ) public {
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
-
-    ZkStaker.DepositIdentifier _depositId;
-    (_amount, _depositId) =
-      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
-
-    vm.prank(_depositor);
-    vm.expectEmit();
-    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _previousValidatorStakeWeight - _amount);
-    vm.expectEmit();
-    emit ZkStaker.ValidatorTotalWeightUpdated(_newValidator, _amount);
-    zkStaker.alterValidator(_depositId, _newValidator);
-  }
-
   function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
     address _depositor,
     uint256 _amount,
@@ -943,6 +920,29 @@ contract AlterValidator is ZkStakerTestBase {
     zkStaker.alterValidator(_depositId, _newValidator);
     assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
     assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
+  }
+
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+
+    vm.prank(_depositor);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _previousValidatorStakeWeight - _amount);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_newValidator, _amount);
+    zkStaker.alterValidator(_depositId, _newValidator);
   }
 
   function testFuzz_AllowsTheDepositorToReiterateTheirExistingValidator(
