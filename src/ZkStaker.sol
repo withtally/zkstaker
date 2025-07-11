@@ -43,11 +43,39 @@ contract ZkStaker is
     uint256 earningPower
   );
 
+  /// @notice Emitted when the validator stake authority is set.
+  /// @param oldAuthority The address of the old validator stake authority.
+  /// @param newAuthority The address of the new validator stake authority.
+  event ValidatorStakeAuthoritySet(address indexed oldAuthority, address indexed newAuthority);
+
+  /// @notice Emitted when the bonus weight of a validator is set.
+  /// @param validator The address of the validator.
+  /// @param bonusWeight The new bonus weight of the validator.
+  event ValidatorBonusWeightSet(address indexed validator, uint256 indexed bonusWeight);
+
+  /// @notice Emitted when the state of `isLeaderDefault` is changed.
+  /// @param oldIsLeaderDefault The previous state of the `isLeaderDefault`.
+  /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
+  event IsLeaderDefaultSet(bool oldIsLeaderDefault, bool newIsLeaderDefault);
+
   /// @notice Maps a deposit identifier to the validator associated with it.
   mapping(Staker.DepositIdentifier depositId => address validator) public validatorForDeposit;
 
   /// @notice Maps a validator to its stake weight.
   mapping(address validator => uint256 weight) public validatorStakeWeight;
+
+  /// @notice Maps a validator to its bonus weight.
+  mapping(address validator => uint256 weight) public validatorBonusWeight;
+
+  /// @notice Address managing validator bonus weights and registry interactions.
+  /// @dev The authority can set bonus weights for validators and execute registry operations such
+  /// as changing validator leadership and committee settings. It includes pass-through methods for
+  /// registry interactions like changing validator leadership, committing the validator committee,
+  /// setting committee activation delay, updating leader selection, and changing validator keys.
+  address public validatorStakeAuthority;
+
+  /// @notice The default value for the `isLeader` flag in the registry for actions that require it.
+  bool public isLeaderDefault;
 
   /// @notice Initializes the ZkStaker contract with required parameters.
   /// @param _rewardsToken ERC20 token in which rewards will be denominated.
@@ -64,7 +92,9 @@ contract ZkStaker is
     uint256 _maxBumpTip,
     uint256 _initialTotalStakeCap,
     address _admin,
-    string memory _name
+    address _validatorStakeAuthority,
+    string memory _name,
+    bool _initialIsLeaderDefault
   )
     Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
     StakerPermitAndStake(_stakeToken)
@@ -74,6 +104,8 @@ contract ZkStaker is
   {
     MAX_CLAIM_FEE = 1e18;
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
+    _setValidatorStakeAuthority(_validatorStakeAuthority);
+    _setIsLeaderDefault(_initialIsLeaderDefault);
   }
 
   /// @notice Allows a user to stake a specified amount of tokens, delegate voting power, and
@@ -109,6 +141,33 @@ contract ZkStaker is
     Deposit storage deposit = deposits[_depositId];
     _revertIfNotDepositOwner(deposit, msg.sender);
     _alterValidator(deposit, _depositId, _newValidator);
+  }
+
+  /// @notice Sets a new validator stake authority.
+  /// @param _newAuthority The address of the new validator stake authority.
+  /// @dev This function can only be called by the current admin.
+  function setValidatorStakeAuthority(address _newAuthority) external virtual {
+    _revertIfNotAdmin();
+    _setValidatorStakeAuthority(_newAuthority);
+  }
+
+  /// @notice Sets the bonus weight for a given validator.
+  /// @dev This function can only be called by the validator stake authority.
+  /// @param _validator The address of the validator whose bonus weight is being set.
+  /// @param _newBonusWeight The new bonus weight to assign to the validator.
+  function setBonusWeight(address _validator, uint256 _newBonusWeight) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    emit ValidatorBonusWeightSet(_validator, _newBonusWeight);
+    validatorBonusWeight[_validator] = _newBonusWeight;
+    // TODO: Make changes in the registry.
+  }
+
+  /// @notice Sets the default leader status for validators.
+  /// @dev This function can only be called by the validator stake authority.
+  /// @param _isLeaderDefault The new default leader status to set.
+  function setIsLeaderDefault(bool _isLeaderDefault) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    _setIsLeaderDefault(_isLeaderDefault);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -167,5 +226,26 @@ contract ZkStaker is
     // TODO: Make changes in the registry.
 
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+  }
+
+  /// @notice Internal helper method to set the validator stake authority.
+  /// @param _newAuthority The address of the new validator stake authority.
+  function _setValidatorStakeAuthority(address _newAuthority) internal virtual {
+    emit ValidatorStakeAuthoritySet(validatorStakeAuthority, _newAuthority);
+    validatorStakeAuthority = _newAuthority;
+  }
+
+  /// @notice Internal function to set the default leader status.
+  /// @param _newIsLeaderDefault The new default leader status to be set.
+  function _setIsLeaderDefault(bool _newIsLeaderDefault) internal virtual {
+    emit IsLeaderDefaultSet(isLeaderDefault, _newIsLeaderDefault);
+    isLeaderDefault = _newIsLeaderDefault;
+  }
+
+  /// @notice Helper method that reverts if the caller is not the validator stake authority.
+  function _revertIfNotValidatorStakeAuthority() internal virtual {
+    if (msg.sender != validatorStakeAuthority) {
+      revert Staker__Unauthorized("not validator stake authority", msg.sender);
+    }
   }
 }
