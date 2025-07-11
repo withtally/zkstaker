@@ -771,6 +771,19 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     assertEq(_pop.b, _validatorPoP.b);
   }
 
+  function testFuzz_EmitsValidatorKeysSetEvent(
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+
+    vm.expectEmit();
+    emit ZkStaker.ValidatorKeysSet(_validator, _validatorPubKey, _validatorPoP);
+    vm.prank(_validator);
+    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+  }
+
   function testFuzz_RegistersValidatorAsValidatorStakeAuthority(
     address _validator,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,

@@ -64,8 +64,15 @@ contract ZkStaker is
   /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
   event IsLeaderDefaultSet(bool oldIsLeaderDefault, bool newIsLeaderDefault);
 
-  /// @notice Emitted when a validator is already registered.
-  error ValidatorAlreadyRegistered();
+  /// @notice Emitted when the validator keys are set.
+  /// @param validatorOwner The address of the validator owner.
+  /// @param newPubKey The new BLS12-381 public key of the validator.
+  /// @param newPop The new BLS12-381 signature of the validator.
+  event ValidatorKeysSet(
+    address indexed validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey newPubKey,
+    IConsensusRegistry.BLS12_381Signature newPop
+  );
 
   /// @notice Emitted when the validator keys are invalid.
   error InvalidValidatorKeys();
@@ -266,6 +273,7 @@ contract ZkStaker is
   ) internal virtual {
     registeredValidators[_validatorOwner] =
       ValidatorKeys({pubKey: _validatorPubKey, pop: _validatorPoP});
+    emit ValidatorKeysSet(_validatorOwner, _validatorPubKey, _validatorPoP);
   }
 
   /// @notice Registers or changes the validator key on the registry.
