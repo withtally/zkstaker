@@ -28,6 +28,7 @@ contract IntegrationTest is Test {
       address(this),
       address(this),
       "ZkStaker",
+      1e18,
       true
     );
   }
