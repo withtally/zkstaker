@@ -74,6 +74,11 @@ contract ZkStaker is
     IConsensusRegistry.BLS12_381Signature newPop
   );
 
+  /// @notice Emitted when the registry is set.
+  /// @param oldRegistry The address of the old registry.
+  /// @param newRegistry The address of the new registry.
+  event RegistrySet(address indexed oldRegistry, address indexed newRegistry);
+
   /// @notice Emitted when the validator keys are invalid.
   error InvalidValidatorKeys();
 
@@ -221,6 +226,7 @@ contract ZkStaker is
   /// @param _registry The new consensus registry to set.
   function setRegistry(IConsensusRegistry _registry) external virtual {
     _revertIfNotAdmin();
+    emit RegistrySet(address(registry), address(_registry));
     registry = _registry;
   }
 
@@ -262,6 +268,20 @@ contract ZkStaker is
     }
   }
 
+  /// @notice Registers or changes the validator key on the registry.
+  /// @dev This function can be called by the validator owner or the validator stake authority.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @param _validatorPubKey The BLS12-381 public key of the validator.
+  /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
+  function registerOrChangeValidatorKeyOnTheRegistry(
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public virtual {
+    if (msg.sender != _validatorOwner) _revertIfNotValidatorStakeAuthority();
+    _registerOrChangeValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+  }
+
   /// @notice Sets the validator keys for a given validator owner.
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
@@ -285,8 +305,7 @@ contract ZkStaker is
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) internal virtual {
-    IConsensusRegistry.Validator memory _validator = registry.validators(_validatorOwner);
-    bool _isInRegistry = !_validator.latest.removed;
+    bool _isInRegistry = _isValidatorRegisteredAndNotRemovedOnTheRegistry(_validatorOwner);
     uint256 _weight = validatorTotalWeight(_validatorOwner);
     bool _isAboveThreshold = _weight >= validatorWeightThreshold;
 
@@ -297,6 +316,18 @@ contract ZkStaker is
     } else if (_isInRegistry) {
       registry.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
     }
+  }
+
+  /// @notice Checks if a validator is registered and not removed on the registry.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @return True if the validator is registered and not removed on the registry, false otherwise.
+  function _isValidatorRegisteredAndNotRemovedOnTheRegistry(address _validatorOwner)
+    internal
+    virtual
+    returns (bool)
+  {
+    IConsensusRegistry.Validator memory _validator = registry.validators(_validatorOwner);
+    return !_isEmptyBLS12_381PublicKey(_validator.latest.pubKey) && !_validator.latest.removed;
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
