@@ -823,6 +823,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validator);
     zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
@@ -848,6 +849,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validator);
     zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
@@ -875,11 +877,13 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
   ) public {
     _bonusWeightAboveThreshold =
       bound(_bonusWeightAboveThreshold, initialValidatorWeightThreshold, type(uint256).max);
+
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
     _setMockRegistry();
 
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validatorOwner);
     zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
@@ -1101,7 +1105,6 @@ contract RegisterOrChangeValidatorKeyOnTheRegistry is ZkStakerTestBase {
   ) public {
     _bonusWeightAboveThreshold =
       bound(_bonusWeightAboveThreshold, initialValidatorWeightThreshold, type(uint256).max);
-
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
 
