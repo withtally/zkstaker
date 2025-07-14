@@ -7,7 +7,10 @@ import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
 import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
 import {MockFullEarningPowerCalculator} from "staker-test/mocks/MockFullEarningPowerCalculator.sol";
-import {IConsensusRegistry} from "src/interfaces/IConsensusRegistry.sol";
+import {
+  IConsensusRegistryExtended,
+  IConsensusRegistry
+} from "src/interfaces/IConsensusRegistryExtended.sol";
 import {ConsensusRegistryMock} from "test/mocks/ConsensusRegistryMock.sol";
 
 contract ZkStakerTestBase is Test {
@@ -119,7 +122,7 @@ contract ZkStakerTestBase is Test {
   function _setMockRegistry() internal {
     ConsensusRegistryMock mockRegistry = new ConsensusRegistryMock();
     vm.prank(admin);
-    zkStaker.setRegistry(IConsensusRegistry(address(mockRegistry)));
+    zkStaker.setRegistry(IConsensusRegistryExtended(address(mockRegistry)));
   }
 }
 
@@ -746,20 +749,22 @@ contract ValidatorTotalWeight is ZkStakerTestBase {
 }
 
 contract SetRegistry is ZkStakerTestBase {
-  function testFuzz_SetsRegistry(IConsensusRegistry _newRegistry) public {
+  function testFuzz_SetsRegistry(IConsensusRegistryExtended _newRegistry) public {
     vm.prank(admin);
     zkStaker.setRegistry(_newRegistry);
     assertEq(address(zkStaker.registry()), address(_newRegistry));
   }
 
-  function testFuzz_EmitsRegistrySetEvent(IConsensusRegistry _newRegistry) public {
+  function testFuzz_EmitsRegistrySetEvent(IConsensusRegistryExtended _newRegistry) public {
     vm.expectEmit();
     emit ZkStaker.RegistrySet(address(zkStaker.registry()), address(_newRegistry));
     vm.prank(admin);
     zkStaker.setRegistry(_newRegistry);
   }
 
-  function testFuzz_RevertIf_NotAdmin(address _caller, IConsensusRegistry _newRegistry) public {
+  function testFuzz_RevertIf_NotAdmin(address _caller, IConsensusRegistryExtended _newRegistry)
+    public
+  {
     vm.assume(_caller != admin);
     vm.expectRevert(
       abi.encodeWithSelector(Staker.Staker__Unauthorized.selector, bytes32("not admin"), _caller)

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {IConsensusRegistry} from "src/interfaces/IConsensusRegistry.sol";
+import {
+  IConsensusRegistryExtended,
+  IConsensusRegistry
+} from "src/interfaces/IConsensusRegistryExtended.sol";
 
-contract ConsensusRegistryMock is IConsensusRegistry {
+contract ConsensusRegistryMock is IConsensusRegistryExtended {
   /// @dev A mapping of validator owners => validators.
   mapping(address => Validator) private _validators;
 
@@ -17,21 +20,20 @@ contract ConsensusRegistryMock is IConsensusRegistry {
   }
 
   function add(
-    address _validator,
-    bool _isLeaderDefault,
-    uint32 _weight,
+    address _validatorOwner,
+    bool _validatorIsLeader,
+    bool _validatorIsActive,
+    uint256 _validatorWeight,
     BLS12_381PublicKey calldata _validatorPubKey,
     BLS12_381Signature calldata _validatorPoP
   ) external {
-    _validators[_validator] = Validator({
+    _validators[_validatorOwner] = Validator({
       ownerIdx: 0, // Assuming a default value for ownerIdx
-      lastSnapshotCommit: 0, // Assuming a default value for lastSnapshotCommit
-      previousSnapshotCommit: 0, // Assuming a default value for previousSnapshotCommit
       latest: ValidatorAttr({
-        active: true, // Assuming the validator is active by default
+        active: _validatorIsActive,
         removed: false,
-        leader: _isLeaderDefault,
-        weight: _weight,
+        leader: _validatorIsLeader,
+        weight: _validatorWeight,
         pubKey: _validatorPubKey,
         proofOfPossession: _validatorPoP
       }),
@@ -43,6 +45,7 @@ contract ConsensusRegistryMock is IConsensusRegistry {
         pubKey: BLS12_381PublicKey({a: bytes32(0), b: bytes32(0), c: bytes32(0)}),
         proofOfPossession: BLS12_381Signature({a: bytes32(0), b: bytes16(0)})
       }),
+      snapshotCommit: 0,
       previousSnapshot: ValidatorAttr({
         active: false,
         removed: false,
@@ -50,7 +53,8 @@ contract ConsensusRegistryMock is IConsensusRegistry {
         weight: 0,
         pubKey: BLS12_381PublicKey({a: bytes32(0), b: bytes32(0), c: bytes32(0)}),
         proofOfPossession: BLS12_381Signature({a: bytes32(0), b: bytes16(0)})
-      })
+      }),
+      previousSnapshotCommit: 0
     });
   }
 
@@ -69,7 +73,7 @@ contract ConsensusRegistryMock is IConsensusRegistry {
 
   function changeValidatorLeader(address _validatorOwner, bool _isLeader) external {}
 
-  function changeValidatorWeight(address _validatorOwner, uint32 _weight) external {}
+  function changeValidatorWeight(address _validatorOwner, uint256 _weight) external {}
 
   function commitValidatorCommittee() external {}
 

@@ -9,7 +9,10 @@ import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {IConsensusRegistry} from "src/interfaces/IConsensusRegistry.sol";
+import {
+  IConsensusRegistryExtended,
+  IConsensusRegistry
+} from "src/interfaces/IConsensusRegistryExtended.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -104,7 +107,7 @@ contract ZkStaker is
   mapping(address validator => ValidatorKeys keys) public registeredValidators;
 
   /// @notice The consensus registry interface used for validator operations.
-  IConsensusRegistry public registry;
+  IConsensusRegistryExtended public registry;
 
   /// @notice Address managing validator bonus weights and registry interactions.
   /// @dev The authority can set bonus weights for validators and execute registry operations such
@@ -224,7 +227,7 @@ contract ZkStaker is
   /// @notice Sets the consensus registry for the ZkStaker contract.
   /// @dev This function can only be called by the current admin.
   /// @param _registry The new consensus registry to set.
-  function setRegistry(IConsensusRegistry _registry) external virtual {
+  function setRegistry(IConsensusRegistryExtended _registry) external virtual {
     _revertIfNotAdmin();
     emit RegistrySet(address(registry), address(_registry));
     registry = _registry;
@@ -310,9 +313,7 @@ contract ZkStaker is
     bool _isAboveThreshold = _weight >= validatorWeightThreshold;
 
     if (!_isInRegistry && _isAboveThreshold) {
-      registry.add(
-        _validatorOwner, isLeaderDefault, uint32(_weight), _validatorPubKey, _validatorPoP
-      );
+      registry.add(_validatorOwner, isLeaderDefault, true, _weight, _validatorPubKey, _validatorPoP);
     } else if (_isInRegistry) {
       registry.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
     }
