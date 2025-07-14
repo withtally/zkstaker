@@ -271,18 +271,39 @@ contract ZkStaker is
     }
   }
 
-  /// @notice Registers or changes the validator key on the registry.
-  /// @dev This function can be called by the validator owner or the validator stake authority.
+  /// @notice Registers existing validators on the registry once a registry contract is set.
+  /// @dev This function can be called by the validator owner or the validator stake authority. It
+  /// reverts if the provided keys do not match the registered keys for the given validator owner.
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
   /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
-  function registerOrChangeValidatorKeyOnTheRegistry(
+  function registerValidatorKeyOnTheRegistry(
     address _validatorOwner,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public virtual {
     if (msg.sender != _validatorOwner) _revertIfNotValidatorStakeAuthority();
+    _revertIfValidatorKeysDoNotMatchRegisteredKeys(_validatorOwner, _validatorPubKey, _validatorPoP);
     _registerOrChangeValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+  }
+
+  /// @notice Reverts if the provided validator keys do not match the registered keys for the given
+  /// validator owner.
+  /// @param _validatorOwner The address of the validator owner whose keys are being verified.
+  /// @param _validatorPubKey The BLS12-381 public key to verify against the registered keys.
+  /// @param _validatorPoP The proof-of-possession (PoP) signature to verify against the registered
+  /// keys.
+  function _revertIfValidatorKeysDoNotMatchRegisteredKeys(
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) internal view {
+    ValidatorKeys memory registeredKeys = registeredValidators[_validatorOwner];
+    if (
+      registeredKeys.pubKey.a != _validatorPubKey.a || registeredKeys.pubKey.b != _validatorPubKey.b
+        || registeredKeys.pubKey.c != _validatorPubKey.c || registeredKeys.pop.a != _validatorPoP.a
+        || registeredKeys.pop.b != _validatorPoP.b
+    ) revert InvalidValidatorKeys();
   }
 
   /// @notice Sets the validator keys for a given validator owner.
