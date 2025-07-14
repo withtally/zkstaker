@@ -70,7 +70,7 @@ contract ZkStaker is
   /// @notice Emitted when the validator keys are set.
   /// @param validatorOwner The address of the validator owner.
   /// @param newPubKey The new BLS12-381 public key of the validator.
-  /// @param newPop The new BLS12-381 signature of the validator.
+  /// @param newPop The new BLS12-381 proof-of-possession signature of the validator.
   event ValidatorKeysSet(
     address indexed validatorOwner,
     IConsensusRegistry.BLS12_381PublicKey newPubKey,
@@ -87,7 +87,7 @@ contract ZkStaker is
 
   /// @notice Struct to store the validator keys.
   /// @param pubKey The BLS12-381 public key of the validator.
-  /// @param pop The BLS12-381 signature of the validator.
+  /// @param pop The BLS12-381 proof-of-possession signature of the validator.
   struct ValidatorKeys {
     IConsensusRegistry.BLS12_381PublicKey pubKey;
     IConsensusRegistry.BLS12_381Signature pop;
@@ -250,7 +250,7 @@ contract ZkStaker is
 
   /// @notice Registers or changes the validator key for a given validator owner.
   /// @dev This function can be called by the validator owner or the validator stake authority.
-  /// It checks for valid BLS12-381 public key and signature before proceeding.
+  /// It checks for a valid BLS12-381 public key and signature before proceeding.
   /// If a registry is set, it updates the registry with the new validator key.
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
@@ -460,7 +460,7 @@ contract ZkStaker is
   }
 
   /// @notice Checks if a BLS12-381 signature is empty.
-  /// @param _pop The BLS12-381 signature to check.
+  /// @param _pop The BLS12-381 proof-of-possession signature to check.
   /// @return True if the signature is empty, false otherwise.
   function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop)
     private
