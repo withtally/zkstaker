@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {ZkStaker, Staker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
@@ -1043,15 +1043,22 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 
-  function testFuzz_RevertIf_InvalidKeys(address _validator) public {
-    IConsensusRegistry.BLS12_381PublicKey memory _emptyPubKey =
-      IConsensusRegistry.BLS12_381PublicKey({a: bytes32(0), b: bytes32(0), c: bytes32(0)});
-    IConsensusRegistry.BLS12_381Signature memory _emptyPoP =
-      IConsensusRegistry.BLS12_381Signature({a: bytes32(0), b: bytes16(0)});
+  function testFuzz_RevertIf_InvalidKeys(
+    uint256 _arbitraryNumber,
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey memory _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature memory _validatorPoP
+  ) public {
+    if (_arbitraryNumber % 2 == 0) {
+      _validatorPubKey =
+        IConsensusRegistry.BLS12_381PublicKey({a: bytes32(0), b: bytes32(0), c: bytes32(0)});
+    } else {
+      _validatorPoP = IConsensusRegistry.BLS12_381Signature({a: bytes32(0), b: bytes16(0)});
+    }
 
     vm.prank(_validator);
     vm.expectRevert(abi.encodeWithSelector(ZkStaker.InvalidValidatorKeys.selector));
-    zkStaker.registerOrChangeValidatorKey(_validator, _emptyPubKey, _emptyPoP);
+    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 }
 
