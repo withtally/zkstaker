@@ -62,6 +62,11 @@ contract ZkStaker is
   /// @param newThreshold The new validator weight threshold.
   event ValidatorWeightThresholdSet(uint256 oldThreshold, uint256 newThreshold);
 
+  // /// @notice Emitted when the validator weight is updated.
+  // /// @param validator The address of the validator.
+  // /// @param newWeight The new weight of the validator.
+  // event ValidatorTotalWeightUpdated(address indexed validator, uint256 indexed newWeight);
+
   /// @notice Emitted when the state of `isLeaderDefault` is changed.
   /// @param oldIsLeaderDefault The previous state of the `isLeaderDefault`.
   /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
@@ -179,7 +184,7 @@ contract ZkStaker is
     validatorForDeposit[_depositId] = _validator;
     validatorStakeWeight[_validator] += _amount;
 
-    // TODO: Make changes in the registry.
+    _updateValidatorWeightOnRegistry(_validator);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -221,7 +226,7 @@ contract ZkStaker is
     _revertIfNotValidatorStakeAuthority();
     emit ValidatorBonusWeightSet(_validator, _newBonusWeight);
     validatorBonusWeight[_validator] = _newBonusWeight;
-    // TODO: Make changes in the registry.
+    _updateValidatorWeightOnRegistry(_validator);
   }
 
   /// @notice Sets the consensus registry for the ZkStaker contract.
@@ -345,7 +350,8 @@ contract ZkStaker is
     validatorStakeWeight[_oldValidator] -= _depositBalance;
     validatorStakeWeight[_newValidator] += _depositBalance;
 
-    // TODO: Make changes in the registry.
+    _updateValidatorWeightOnRegistry(_oldValidator);
+    _updateValidatorWeightOnRegistry(_newValidator);
 
     emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
@@ -372,9 +378,35 @@ contract ZkStaker is
     address _depositValidator = validatorForDeposit[_depositId];
     // TODO: atomically store validator for earning power calculation.
     validatorStakeWeight[_depositValidator] += _amount;
-    // TODO: Make changes in the registry.
+    _updateValidatorWeightOnRegistry(_depositValidator);
 
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+  }
+
+  /// @notice Updates the validator's weight on the registry.
+  /// @dev This function checks if the validator is registered and updates its weight on the
+  /// registry.
+  /// If the validator is not in the registry and its weight is above the threshold, it is added.
+  /// If the validator is in the registry, its weight is updated, and it is removed if below the
+  /// threshold.
+  /// @param _validatorOwner The address of the validator owner whose weight is being updated.
+  function _updateValidatorWeightOnRegistry(address _validatorOwner) internal virtual {
+    if (!_isValidatorRegistered(_validatorOwner)) return;
+    if (address(registry) == address(0)) return;
+    ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
+    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
+
+    bool _isInRegistry = _isValidatorRegisteredAndNotRemovedOnTheRegistry(_validatorOwner);
+    bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;
+
+    if (!_isInRegistry && _isAboveThreshold) {
+      registry.add(_validatorOwner, isLeaderDefault, true, _newWeight, _keys.pubKey, _keys.pop);
+    }
+
+    if (_isInRegistry) {
+      registry.changeValidatorWeight(_validatorOwner, _newWeight);
+      if (!_isAboveThreshold) registry.remove(_validatorOwner);
+    }
   }
 
   /// @notice Internal helper method to set the validator stake authority.

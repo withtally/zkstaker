@@ -67,13 +67,17 @@ contract ConsensusRegistryMock is IConsensusRegistryExtended {
     _validators[_validatorOwner].latest.proofOfPossession = _pop;
   }
 
-  function remove(address _validatorOwner) external {}
+  function changeValidatorWeight(address _validatorOwner, uint256 _weight) external {
+    _validators[_validatorOwner].latest.weight = _weight;
+  }
+
+  function remove(address _validatorOwner) external {
+    _validators[_validatorOwner].latest.removed = true;
+  }
 
   function changeValidatorActive(address _validatorOwner, bool _isActive) external {}
 
   function changeValidatorLeader(address _validatorOwner, bool _isLeader) external {}
-
-  function changeValidatorWeight(address _validatorOwner, uint256 _weight) external {}
 
   function commitValidatorCommittee() external {}
 

@@ -96,6 +96,11 @@ contract ZkStakerTestBase is Test {
     return _amount;
   }
 
+  function _mintGovToken(address _to, uint256 _amount) internal {
+    vm.assume(_to != address(0));
+    govToken.mint(_to, _amount);
+  }
+
   function _boundMintAndStake(
     address _depositor,
     uint256 _amount,
@@ -147,6 +152,11 @@ contract ZkStakerTestBase is Test {
     vm.assume(_validatorPoP.a != bytes32(0) && _validatorPoP.b != bytes16(0));
   }
 
+  function _assumeValidDelegateeAndClaimer(address _delegatee, address _claimer) internal pure {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+  }
+
   function _setMockRegistry() internal {
     ConsensusRegistryMock mockRegistry = new ConsensusRegistryMock();
     vm.prank(admin);
@@ -171,6 +181,17 @@ contract ZkStakerTestBase is Test {
       bound(_bonusWeightAboveThreshold, initialValidatorWeightThreshold, type(uint256).max);
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
+  }
+
+  function _setBonusWeightBelowThreshold(
+    address _validatorOwner,
+    uint256 _bonusWeightBelowThreshold
+  ) internal returns (uint256) {
+    _bonusWeightBelowThreshold =
+      bound(_bonusWeightBelowThreshold, 0, initialValidatorWeightThreshold - 1);
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightBelowThreshold);
+    return _bonusWeightBelowThreshold;
   }
 }
 
@@ -341,6 +362,104 @@ contract Stake is ZkStakerTestBase {
 
     assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
     assertEq(zkStaker.validatorStakeWeight(_validator), _amount);
+  }
+
+  function testFuzz_AddsValidatorToRegistryWhenValidatorWeightIsAboveThreshold(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _amount = bound(
+      _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
+    );
+    _mintGovToken(_depositor, _amount);
+    _setMockRegistry();
+    vm.prank(_validatorOwner);
+    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stake(_amount, _delegatee, _claimer, _validatorOwner);
+    vm.stopPrank();
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
+    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
+    assertEq(_pubKey.a, _validatorPubKey.a);
+    assertEq(_pubKey.b, _validatorPubKey.b);
+    assertEq(_pubKey.c, _validatorPubKey.c);
+    assertEq(_pop.a, _validatorPoP.a);
+    assertEq(_pop.b, _validatorPoP.b);
+  }
+
+  function testFuzz_UpdatesValidatorWeightOnRegistryWhenValidatorIsAlreadyRegistered(
+    address _depositor,
+    uint256 _bonusWeightAboveThreshold,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _bonusWeightAboveThreshold = bound(
+      _bonusWeightAboveThreshold,
+      initialValidatorWeightThreshold,
+      zkStaker.totalStakeCap() - zkStaker.totalStaked()
+    );
+    _amount = bound(
+      _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
+    );
+    _mintGovToken(_depositor, _amount);
+    _setMockRegistry();
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
+    vm.prank(_validatorOwner);
+    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stake(_amount, _delegatee, _claimer, _validatorOwner);
+    vm.stopPrank();
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_validator.latest.weight, _bonusWeightAboveThreshold + _amount);
+  }
+
+  function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(
+    uint256 _bonusWeightAboveThreshold,
+    uint256 _bonusWeightBelowThreshold,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _setBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
+    _setMockRegistry();
+    vm.prank(_validatorOwner);
+    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _bonusWeightBelowThreshold =
+      _setBonusWeightBelowThreshold(_validatorOwner, _bonusWeightBelowThreshold);
+
+    vm.prank(_validatorOwner);
+    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_validator.latest.weight, _bonusWeightBelowThreshold);
+    assertEq(_validator.latest.removed, true);
   }
 }
 
