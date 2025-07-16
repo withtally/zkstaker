@@ -143,7 +143,7 @@ contract ZkStakerTestBase is Test {
   ) internal {
     _setMockRegistry();
     vm.prank(_validator);
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 
   function _setBonusWeightAboveThreshold(
@@ -805,7 +805,7 @@ contract SetRegistry is ZkStakerTestBase {
   }
 }
 
-contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
+contract ChangeValidatorKey is ZkStakerTestBase {
   function testFuzz_RegistersValidatorAsOwner(
     address _validator,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -814,7 +814,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     vm.prank(_validator);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
 
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
     (
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
@@ -836,7 +836,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
 
     vm.prank(validatorStakeAuthority);
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
     (
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
@@ -860,7 +860,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(_validatorOwner);
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
@@ -883,7 +883,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(validatorStakeAuthority);
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
@@ -905,7 +905,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     vm.expectEmit();
     emit ZkStaker.ValidatorKeysSet(_validator, _validatorPubKey, _validatorPoP);
     vm.prank(_validator);
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 
   function testFuzz_ChangesValidatorKeysAsOwner(
@@ -918,10 +918,10 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validator);
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
     vm.prank(_validator);
-    zkStaker.registerOrChangeValidatorKey(_validator, _newValidatorPubKey, _newValidatorPoP);
+    zkStaker.changeValidatorKey(_validator, _newValidatorPubKey, _newValidatorPoP);
 
     (
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
@@ -952,10 +952,10 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validatorOwner);
-    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(_validatorOwner);
-    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
@@ -977,10 +977,10 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validator);
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
 
     vm.prank(validatorStakeAuthority);
-    zkStaker.registerOrChangeValidatorKey(_validator, _newValidatorPubKey, _newValidatorPoP);
+    zkStaker.changeValidatorKey(_validator, _newValidatorPubKey, _newValidatorPoP);
 
     (
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
@@ -1011,10 +1011,10 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
     vm.prank(_validatorOwner);
-    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(validatorStakeAuthority);
-    zkStaker.registerOrChangeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
+    zkStaker.changeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
@@ -1040,7 +1040,7 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
         Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
       )
     );
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 
   function testFuzz_RevertIf_InvalidKeys(
@@ -1058,122 +1058,6 @@ contract RegisterOrChangeValidatorKey is ZkStakerTestBase {
 
     vm.prank(_validator);
     vm.expectRevert(abi.encodeWithSelector(ZkStaker.InvalidValidatorKeys.selector));
-    zkStaker.registerOrChangeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
-  }
-}
-
-contract RegisterValidatorKeyOnTheRegistry is ZkStakerTestBase {
-  function testFuzz_RegisterAsValidator(
-    address _validatorOwner,
-    uint256 _bonusWeightAboveThreshold,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
-  ) public {
-    _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
-    _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    vm.prank(_validatorOwner);
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
-    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
-  }
-
-  function testFuzz_DoesNotRegisterAsValidatorIfBelowThreshold(
-    address _validatorOwner,
-    uint256 _bonusWeightBelowThreshold,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
-  ) public {
-    _bonusWeightBelowThreshold =
-      bound(_bonusWeightBelowThreshold, 0, initialValidatorWeightThreshold - 1);
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightBelowThreshold);
-    _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    vm.prank(_validatorOwner);
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
-    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, bytes32(0));
-    assertEq(_pubKey.b, bytes32(0));
-    assertEq(_pubKey.c, bytes32(0));
-    assertEq(_pop.a, bytes32(0));
-    assertEq(_pop.b, bytes16(0));
-  }
-
-  function testFuzz_RegisterAsValidatorStakeAuthority(
-    address _validatorOwner,
-    uint256 _bonusWeightAboveThreshold,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
-  ) public {
-    _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
-    _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
-    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
-  }
-
-  function testFuzz_RevertIf_RegistersValidatorKeyNotMatchingRegisteredKeys(
-    address _validatorOwner,
-    uint256 _bonusWeightAboveThreshold,
-    uint256 _randomBonusWeight,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP,
-    IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
-  ) public {
-    _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _assumeValidKeys(_newValidatorPubKey, _newValidatorPoP);
-    _setBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
-    _registerValidatorAndSetMockRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-    vm.prank(_validatorOwner);
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _randomBonusWeight);
-
-    vm.expectRevert(abi.encodeWithSelector(ZkStaker.InvalidValidatorKeys.selector));
-    vm.prank(_validatorOwner);
-    zkStaker.registerValidatorKeyOnTheRegistry(
-      _validatorOwner, _newValidatorPubKey, _newValidatorPoP
-    );
-  }
-
-  function testFuzz_RevertIf_NotOwnerAndNotValidatorStakeAuthority(
-    address _caller,
-    address _validatorOwner,
-    uint256 _randomBonusWeight,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
-  ) public {
-    vm.assume(_caller != _validatorOwner && _caller != validatorStakeAuthority);
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _randomBonusWeight);
-
-    vm.prank(_caller);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
-      )
-    );
-    zkStaker.registerValidatorKeyOnTheRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
+    zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 }
