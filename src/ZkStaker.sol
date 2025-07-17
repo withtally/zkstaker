@@ -62,11 +62,6 @@ contract ZkStaker is
   /// @param newThreshold The new validator weight threshold.
   event ValidatorWeightThresholdSet(uint256 oldThreshold, uint256 newThreshold);
 
-  // /// @notice Emitted when the validator weight is updated.
-  // /// @param validator The address of the validator.
-  // /// @param newWeight The new weight of the validator.
-  // event ValidatorTotalWeightUpdated(address indexed validator, uint256 indexed newWeight);
-
   /// @notice Emitted when the state of `isLeaderDefault` is changed.
   /// @param oldIsLeaderDefault The previous state of the `isLeaderDefault`.
   /// @param newIsLeaderDefault The new state for the `isLeaderDefault`.
@@ -183,8 +178,7 @@ contract ZkStaker is
     _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
     validatorForDeposit[_depositId] = _validator;
     validatorStakeWeight[_validator] += _amount;
-
-    _updateValidatorWeightOnRegistry(_validator);
+    _changeValidatorWeight(_validator);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -226,7 +220,7 @@ contract ZkStaker is
     _revertIfNotValidatorStakeAuthority();
     emit ValidatorBonusWeightSet(_validator, _newBonusWeight);
     validatorBonusWeight[_validator] = _newBonusWeight;
-    _updateValidatorWeightOnRegistry(_validator);
+    _changeValidatorWeight(_validator);
   }
 
   /// @notice Sets the consensus registry for the ZkStaker contract.
@@ -350,8 +344,8 @@ contract ZkStaker is
     validatorStakeWeight[_oldValidator] -= _depositBalance;
     validatorStakeWeight[_newValidator] += _depositBalance;
 
-    _updateValidatorWeightOnRegistry(_oldValidator);
-    _updateValidatorWeightOnRegistry(_newValidator);
+    _changeValidatorWeight(_oldValidator);
+    _changeValidatorWeight(_newValidator);
 
     emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
@@ -378,7 +372,7 @@ contract ZkStaker is
     address _depositValidator = validatorForDeposit[_depositId];
     // TODO: atomically store validator for earning power calculation.
     validatorStakeWeight[_depositValidator] += _amount;
-    _updateValidatorWeightOnRegistry(_depositValidator);
+    _changeValidatorWeight(_depositValidator);
 
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
   }
@@ -390,7 +384,7 @@ contract ZkStaker is
   /// If the validator is in the registry, its weight is updated, and it is removed if below the
   /// threshold.
   /// @param _validatorOwner The address of the validator owner whose weight is being updated.
-  function _updateValidatorWeightOnRegistry(address _validatorOwner) internal virtual {
+  function _changeValidatorWeight(address _validatorOwner) internal virtual {
     if (!_isValidatorRegistered(_validatorOwner)) return;
     if (address(registry) == address(0)) return;
     ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
