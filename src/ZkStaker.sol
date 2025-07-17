@@ -57,6 +57,11 @@ contract ZkStaker is
   /// @param bonusWeight The new bonus weight of the validator.
   event ValidatorBonusWeightSet(address indexed validator, uint256 indexed bonusWeight);
 
+  /// @notice Emitted when the validator weight is updated.
+  /// @param validator The address of the validator.
+  /// @param newWeight The new weight of the validator.
+  event ValidatorTotalWeightUpdated(address indexed validator, uint256 indexed newWeight);
+
   /// @notice Emitted when the validator weight threshold is set.
   /// @param oldThreshold The previous validator weight threshold.
   /// @param newThreshold The new validator weight threshold.
@@ -411,10 +416,12 @@ contract ZkStaker is
   /// threshold.
   /// @param _validatorOwner The address of the validator owner whose weight is being updated.
   function _changeValidatorWeight(address _validatorOwner) internal virtual {
+    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
+    emit ValidatorTotalWeightUpdated(_validatorOwner, _newWeight);
+
     if (!_isValidatorRegistered(_validatorOwner)) return;
     if (address(registry) == address(0)) return;
     ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
-    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
 
     bool _isInRegistry = _isValidatorRegisteredAndNotRemovedOnTheRegistry(_validatorOwner);
     bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;
