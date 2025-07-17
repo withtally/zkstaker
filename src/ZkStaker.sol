@@ -403,8 +403,11 @@ contract ZkStaker is
     address _depositValidator = validatorForDeposit[_depositId];
     // TODO: atomically store validator for earning power calculation.
 
-    validatorStakeWeight[_depositValidator] -= _amount;
-    _changeValidatorWeight(_depositValidator);
+    if (_depositValidator != address(0)) {
+      validatorStakeWeight[_depositValidator] -= _amount;
+      _changeValidatorWeight(_depositValidator);
+    }
+
     Staker._withdraw(deposit, _depositId, _amount);
   }
 
