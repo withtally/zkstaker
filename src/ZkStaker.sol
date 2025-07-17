@@ -384,6 +384,25 @@ contract ZkStaker is
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
   }
 
+  /// @notice Withdraws a specified amount from a deposit.
+  /// @param deposit The deposit from which the amount is to be withdrawn.
+  /// @param _depositId The identifier of the deposit.
+  /// @param _amount The amount to be withdrawn from the deposit.
+  /// @dev This function updates the validator's stake weight and adjusts the validator's weight
+  /// on the registry. It overrides the _withdraw function from the Staker contract.
+  function _withdraw(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
+    internal
+    virtual
+    override(Staker)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    // TODO: atomically store validator for earning power calculation.
+
+    validatorStakeWeight[_depositValidator] -= _amount;
+    _changeValidatorWeight(_depositValidator);
+    Staker._withdraw(deposit, _depositId, _amount);
+  }
+
   /// @notice Updates the validator's weight on the registry.
   /// @dev This function checks if the validator is registered and updates its weight on the
   /// registry.
