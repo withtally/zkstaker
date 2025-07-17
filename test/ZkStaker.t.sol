@@ -1427,7 +1427,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
