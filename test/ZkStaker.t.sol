@@ -445,32 +445,6 @@ contract Stake is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.weight, _bonusWeightBelowThreshold + _amount);
   }
-
-  function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(
-    uint256 _bonusWeightAboveThreshold,
-    uint256 _bonusWeightBelowThreshold,
-    address _delegatee,
-    address _claimer,
-    address _validatorOwner,
-    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
-    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
-  ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
-    _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
-      _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
-    );
-    _bonusWeightBelowThreshold =
-      _boundAndSetBonusWeightBelowThreshold(_validatorOwner, _bonusWeightBelowThreshold);
-
-    vm.prank(_validatorOwner);
-    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
-
-    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    assertEq(_validator.latest.weight, _bonusWeightBelowThreshold);
-    assertEq(_validator.latest.removed, true);
-  }
 }
 
 contract StakeMore is ZkStakerTestBase {
@@ -1385,6 +1359,32 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
     assertEq(_pubKey, _newValidatorPubKey);
     assertEq(_pop, _newValidatorPoP);
+  }
+
+  function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(
+    uint256 _bonusWeightAboveThreshold,
+    uint256 _bonusWeightBelowThreshold,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
+      _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
+    );
+    _bonusWeightBelowThreshold =
+      _boundAndSetBonusWeightBelowThreshold(_validatorOwner, _bonusWeightBelowThreshold);
+
+    vm.prank(_validatorOwner);
+    zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_validator.latest.weight, _bonusWeightBelowThreshold);
+    assertEq(_validator.latest.removed, true);
   }
 
   function testFuzz_RevertIf_NotOwnerAndNotValidatorStakeAuthority(
