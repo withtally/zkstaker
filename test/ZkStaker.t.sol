@@ -684,6 +684,7 @@ contract Withdraw is ZkStakerTestBase {
   ) public {
     vm.assume(_delegatee != address(0));
     vm.assume(_claimer != address(0));
+    vm.assume(_validator != address(0));
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -706,6 +707,7 @@ contract Withdraw is ZkStakerTestBase {
   ) public {
     vm.assume(_delegatee != address(0));
     vm.assume(_claimer != address(0));
+    vm.assume(_validator != address(0));
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -728,6 +730,7 @@ contract Withdraw is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
+    vm.assume(_validatorOwner != address(0));
     _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
@@ -758,6 +761,7 @@ contract Withdraw is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
+    vm.assume(_validatorOwner != address(0));
     _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
