@@ -13,6 +13,7 @@ import {
   IConsensusRegistryExtended,
   IConsensusRegistry
 } from "src/interfaces/IConsensusRegistryExtended.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
@@ -114,6 +115,9 @@ contract ZkStaker is
   /// @notice The consensus registry interface used for validator operations.
   IConsensusRegistryExtended public registry;
 
+  /// @notice Address used for atomic earning power calculation.
+  address public validatorForAtomicEarningPowerCalculation;
+
   /// @notice Address managing validator bonus weights and registry interactions.
   /// @dev The authority can set bonus weights for validators and execute registry operations such
   /// as changing validator leadership and committee settings. It includes pass-through methods for
@@ -178,12 +182,14 @@ contract ZkStaker is
     virtual
     returns (Staker.DepositIdentifier _depositId)
   {
-    // TODO: atomically store validator for earning power calculation.
+    validatorForAtomicEarningPowerCalculation = _validator;
 
     _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
     validatorForDeposit[_depositId] = _validator;
     validatorStakeWeight[_validator] += _amount;
     _changeValidatorWeight(_validator);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -194,10 +200,13 @@ contract ZkStaker is
     external
     virtual
   {
-    // TODO: atomically store validator for earning power calculation.
+    validatorForAtomicEarningPowerCalculation = _newValidator;
+
     Deposit storage deposit = deposits[_depositId];
     _revertIfNotDepositOwner(deposit, msg.sender);
     _alterValidator(deposit, _depositId, _newValidator);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @notice Sets a new validator stake authority.
@@ -375,11 +384,13 @@ contract ZkStaker is
     override(Staker, StakerCapDeposits)
   {
     address _depositValidator = validatorForDeposit[_depositId];
-    // TODO: atomically store validator for earning power calculation.
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
     validatorStakeWeight[_depositValidator] += _amount;
     _changeValidatorWeight(_depositValidator);
-
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @notice Withdraws a specified amount from a deposit.
@@ -394,7 +405,7 @@ contract ZkStaker is
     override(Staker)
   {
     address _depositValidator = validatorForDeposit[_depositId];
-    // TODO: atomically store validator for earning power calculation.
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
 
     if (_depositValidator != address(0)) {
       validatorStakeWeight[_depositValidator] -= _amount;
@@ -402,6 +413,8 @@ contract ZkStaker is
     }
 
     Staker._withdraw(deposit, _depositId, _amount);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @notice Updates the validator's weight on the registry.
@@ -451,6 +464,112 @@ contract ZkStaker is
   function _setIsLeaderDefault(bool _newIsLeaderDefault) internal virtual {
     emit IsLeaderDefaultSet(isLeaderDefault, _newIsLeaderDefault);
     isLeaderDefault = _newIsLeaderDefault;
+  }
+
+  /// @inheritdoc Staker
+  /// @dev We override this function to atomically store the validator for atomic earning power
+  /// calculation.
+  function _alterClaimer(Deposit storage deposit, DepositIdentifier _depositId, address _newClaimer)
+    internal
+    virtual
+    override(Staker)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+    Staker._alterClaimer(deposit, _depositId, _newClaimer);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
+
+  /// @inheritdoc Staker
+  /// @dev We override this function to atomically store the validator for atomic earning power
+  /// calculation.
+  function _claimReward(DepositIdentifier _depositId, Deposit storage deposit, address _claimer)
+    internal
+    virtual
+    override(Staker)
+    returns (uint256)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+    uint256 _payout = Staker._claimReward(_depositId, deposit, _claimer);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
+
+    return _payout;
+  }
+
+  /// @inheritdoc Staker
+  /// @dev We override this function to atomically store the validator for atomic earning power
+  /// calculation.
+  function bumpEarningPower(
+    DepositIdentifier _depositId,
+    address _tipReceiver,
+    uint256 _requestedTip
+  ) external virtual override(Staker) {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+    _bumpEarningPower(_depositId, _tipReceiver, _requestedTip);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
+
+  /// @notice Increases the earning power of a deposit.
+  /// @dev Validates the requested tip and updates the deposit's earning power and unclaimed
+  /// rewards. Same as Staker.bumpEarningPower().
+  /// @param _depositId The identifier of the deposit.
+  /// @param _tipReceiver The address to receive the tip.
+  /// @param _requestedTip The tip amount requested.
+  function _bumpEarningPower(
+    DepositIdentifier _depositId,
+    address _tipReceiver,
+    uint256 _requestedTip
+  ) internal virtual {
+    if (_requestedTip > maxBumpTip) revert Staker__InvalidTip();
+
+    Deposit storage deposit = deposits[_depositId];
+
+    _checkpointGlobalReward();
+    _checkpointReward(deposit);
+
+    uint256 _unclaimedRewards = deposit.scaledUnclaimedRewardCheckpoint / SCALE_FACTOR;
+
+    (uint256 _newEarningPower, bool _isQualifiedForBump) = earningPowerCalculator.getNewEarningPower(
+      deposit.balance, deposit.owner, deposit.delegatee, deposit.earningPower
+    );
+    if (!_isQualifiedForBump || _newEarningPower == deposit.earningPower) {
+      revert Staker__Unqualified(_newEarningPower);
+    }
+
+    if (_newEarningPower > deposit.earningPower && _unclaimedRewards < _requestedTip) {
+      revert Staker__InsufficientUnclaimedRewards();
+    }
+
+    // Note: underflow causes a revert if the requested  tip is more than unclaimed rewards
+    if (_newEarningPower < deposit.earningPower && (_unclaimedRewards - _requestedTip) < maxBumpTip)
+    {
+      revert Staker__InsufficientUnclaimedRewards();
+    }
+
+    emit EarningPowerBumped(
+      _depositId, deposit.earningPower, _newEarningPower, msg.sender, _tipReceiver, _requestedTip
+    );
+
+    // Update global earning power & deposit earning power based on this bump
+    totalEarningPower =
+      _calculateTotalEarningPower(deposit.earningPower, _newEarningPower, totalEarningPower);
+    depositorTotalEarningPower[deposit.owner] = _calculateTotalEarningPower(
+      deposit.earningPower, _newEarningPower, depositorTotalEarningPower[deposit.owner]
+    );
+    deposit.earningPower = _newEarningPower.toUint96();
+
+    // Send tip to the receiver
+    SafeERC20.safeTransfer(REWARD_TOKEN, _tipReceiver, _requestedTip);
+    deposit.scaledUnclaimedRewardCheckpoint =
+      deposit.scaledUnclaimedRewardCheckpoint - (_requestedTip * SCALE_FACTOR);
   }
 
   /// @notice Helper method that reverts if the caller is not the validator stake authority.
