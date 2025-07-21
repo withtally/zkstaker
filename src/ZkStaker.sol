@@ -187,6 +187,13 @@ contract ZkStaker is
     // TODO: Make changes in the registry.
   }
 
+  /// @notice Returns the total weight of a validator, including both stake and bonus weights.
+  /// @param _validator The address of the validator to calculate the total weight for.
+  /// @return The total weight of the validator, which is the sum of its stake and bonus weights.
+  function validatorTotalWeight(address _validator) public view virtual returns (uint256) {
+    return (validatorStakeWeight[_validator] + validatorBonusWeight[_validator]);
+  }
+
   /// @notice Sets the default leader status for validators.
   /// @dev This function can only be called by the validator stake authority.
   /// @param _isLeaderDefault The new default leader status to set.
