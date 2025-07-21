@@ -1792,3 +1792,114 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
 }
+
+contract ChangeValidatorLeader is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_ChangesValidatorLeader(address _validator) public {
+    vm.assume(_validator != address(this));
+    vm.prank(validatorStakeAuthority);
+    zkStaker.changeValidatorLeader(_validator, true);
+
+    assertEq(zkStaker.registry().validators(_validator).latest.leader, true);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, address _validator) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.changeValidatorLeader(_validator, true);
+  }
+}
+
+contract CommitValidatorCommittee is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_CommitsValidatorCommittee() public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.commitValidatorCommittee();
+
+    uint64 _validatorCommit = zkStaker.registry().validatorsCommit();
+    assertEq(_validatorCommit, 1);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.commitValidatorCommittee();
+  }
+}
+
+contract SetCommitteeActivationDelay is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_SetsCommitteeActivationDelay(uint256 _delay) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setCommitteeActivationDelay(_delay);
+
+    assertEq(zkStaker.registry().committeeActivationDelay(), _delay);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, uint256 _delay) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.setCommitteeActivationDelay(_delay);
+  }
+}
+
+contract UpdateLeaderSelection is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_UpdatesLeaderSelection(uint64 _frequency, bool _weighted) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.updateLeaderSelection(_frequency, _weighted);
+
+    assertEq(zkStaker.registry().leaderSelection().latest.frequency, _frequency);
+    assertEq(zkStaker.registry().leaderSelection().latest.weighted, _weighted);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(
+    address _caller,
+    uint64 _frequency,
+    bool _weighted
+  ) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.updateLeaderSelection(_frequency, _weighted);
+  }
+}

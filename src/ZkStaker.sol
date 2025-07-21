@@ -284,6 +284,39 @@ contract ZkStaker is
     }
   }
 
+  /// @notice Changes the leader status of a validator.
+  /// @dev This function can only be called by the validator stake authority.
+  /// @param _validatorOwner The address of the validator owner.
+  /// @param _isLeader The new leader status to set for the validator.
+  function changeValidatorLeader(address _validatorOwner, bool _isLeader) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.changeValidatorLeader(_validatorOwner, _isLeader);
+  }
+
+  /// @notice Commits the current validator committee.
+  /// @dev This function can only be called by the validator stake authority.
+  function commitValidatorCommittee() external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.commitValidatorCommittee();
+  }
+
+  /// @notice Sets the delay for committee activation.
+  /// @dev This function can only be called by the validator stake authority.
+  /// @param _delay The new delay in seconds for committee activation.
+  function setCommitteeActivationDelay(uint256 _delay) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.setCommitteeActivationDelay(_delay);
+  }
+
+  /// @notice Updates the leader selection parameters.
+  /// @dev This function can only be called by the validator stake authority.
+  /// @param _frequency The frequency of leader selection.
+  /// @param _weighted A boolean indicating if the selection should be weighted.
+  function updateLeaderSelection(uint64 _frequency, bool _weighted) external virtual {
+    _revertIfNotValidatorStakeAuthority();
+    registry.updateLeaderSelection(_frequency, _weighted);
+  }
+
   /// @notice Sets the validator keys for a given validator owner.
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
