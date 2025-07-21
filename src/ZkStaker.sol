@@ -82,7 +82,7 @@ contract ZkStaker is
   /// @param newRegistry The address of the new registry.
   event RegistrySet(address indexed oldRegistry, address indexed newRegistry);
 
-  /// @notice Emitted when the validator keys are invalid.
+  /// @notice Thrown when the validator keys are invalid.
   error InvalidValidatorKeys();
 
   /// @notice Struct to store the validator keys.
@@ -205,18 +205,18 @@ contract ZkStaker is
   }
 
   /// @notice Updates the minimum weight required for a validator to be added to the registry.
-  /// @dev This function can only be called by the current admin.
   /// @param _newValidatorWeightThreshold The new weight threshold for validators, which must be met
   /// or exceeded for a validator to be considered active in the registry.
+  /// @dev This function can only be called by the current admin.
   function setValidatorWeightThreshold(uint256 _newValidatorWeightThreshold) external virtual {
     _revertIfNotAdmin();
     _setValidatorWeightThreshold(_newValidatorWeightThreshold);
   }
 
   /// @notice Sets the bonus weight for a given validator.
-  /// @dev This function can only be called by the validator stake authority.
   /// @param _validator The address of the validator whose bonus weight is being set.
   /// @param _newBonusWeight The new bonus weight to assign to the validator.
+  /// @dev This function can only be called by the validator stake authority.
   function setBonusWeight(address _validator, uint256 _newBonusWeight) external virtual {
     _revertIfNotValidatorStakeAuthority();
     emit ValidatorBonusWeightSet(_validator, _newBonusWeight);
@@ -225,8 +225,8 @@ contract ZkStaker is
   }
 
   /// @notice Sets the consensus registry for the ZkStaker contract.
-  /// @dev This function can only be called by the current admin.
   /// @param _registry The new consensus registry to set.
+  /// @dev This function can only be called by the current admin.
   function setRegistry(IConsensusRegistryExtended _registry) external virtual {
     _revertIfNotAdmin();
     emit RegistrySet(address(registry), address(_registry));
@@ -241,20 +241,20 @@ contract ZkStaker is
   }
 
   /// @notice Sets the default leader status for validators.
-  /// @dev This function can only be called by the validator stake authority.
   /// @param _isLeaderDefault The new default leader status to set.
+  /// @dev This function can only be called by the validator stake authority.
   function setIsLeaderDefault(bool _isLeaderDefault) external virtual {
     _revertIfNotValidatorStakeAuthority();
     _setIsLeaderDefault(_isLeaderDefault);
   }
 
   /// @notice Registers or changes the validator key for a given validator owner.
-  /// @dev This function can be called by the validator owner or the validator stake authority.
-  /// It checks for a valid BLS12-381 public key and signature before proceeding.
-  /// If a registry is set, it updates the registry with the new validator key.
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
   /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
+  /// @dev This function can be called by the validator owner or the validator stake authority.
+  /// It checks for a valid BLS12-381 public key and signature before proceeding.
+  /// If a registry is set, it updates the registry with the new validator key.
   function changeValidatorKey(
     address _validatorOwner,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -404,9 +404,9 @@ contract ZkStaker is
   }
 
   /// @notice Checks if a validator is registered.
+  /// @param _validator The address of the validator to check.
   /// @dev A validator is considered registered if both its BLS12-381 public key and proof of
   /// possession signature are non-empty.
-  /// @param _validator The address of the validator to check.
   /// @return True if the validator is registered, false otherwise.
   function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
     ValidatorKeys memory _keys = registeredValidators[_validator];
