@@ -182,14 +182,38 @@ contract ZkStaker is
     virtual
     returns (Staker.DepositIdentifier _depositId)
   {
-    validatorForAtomicEarningPowerCalculation = _validator;
+    return _stake(msg.sender, _amount, _delegatee, _claimer, _validator);
+  }
 
-    _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
-    validatorForDeposit[_depositId] = _validator;
-    validatorStakeWeight[_validator] += _amount;
-    _changeValidatorWeight(_validator);
-
-    validatorForAtomicEarningPowerCalculation = address(0);
+  function stakeOnBehalf(
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _depositor,
+    uint256 _deadline,
+    bytes memory _signature
+  ) external virtual returns (DepositIdentifier _depositId) {
+    _revertIfPastDeadline(_deadline);
+    _revertIfSignatureIsNotValidNow(
+      _depositor,
+      _hashTypedDataV4(
+        keccak256(
+          abi.encode(
+            STAKE_TYPEHASH,
+            _amount,
+            _delegatee,
+            _claimer,
+            _validator,
+            _depositor,
+            _useNonce(_depositor),
+            _deadline
+          )
+        )
+      ),
+      _signature
+    );
+    _depositId = _stake(_depositor, _amount, _delegatee, _claimer, _validator);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -206,6 +230,31 @@ contract ZkStaker is
     _revertIfNotDepositOwner(deposit, msg.sender);
     _alterValidator(deposit, _depositId, _newValidator);
 
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
+
+  function alterValidatorOnBehalf(
+    Staker.DepositIdentifier _depositId,
+    address _newValidator,
+    address _depositor,
+    uint256 _deadline,
+    bytes memory _signature
+  ) external virtual {
+    _revertIfPastDeadline(_deadline);
+    _revertIfSignatureIsNotValidNow(
+      _depositor,
+      _hashTypedDataV4(
+        keccak256(
+          abi.encode(
+            STAKE_TYPEHASH, _depositId, _newValidator, _depositor, _useNonce(_depositor), _deadline
+          )
+        )
+      ),
+      _signature
+    );
+    validatorForAtomicEarningPowerCalculation = _newValidator;
+    Deposit storage deposit = deposits[_depositId];
+    _alterValidator(deposit, _depositId, _newValidator);
     validatorForAtomicEarningPowerCalculation = address(0);
   }
 
@@ -400,13 +449,31 @@ contract ZkStaker is
 
   /// @inheritdoc Staker
   /// @dev We override this function to resolve ambiguity between inherited contracts.
+  /// The validator is assumed to be address(0) when not explicitly specified.
   function _stake(address _depositor, uint256 _amount, address _delegatee, address _claimer)
     internal
     virtual
     override(Staker, StakerCapDeposits)
     returns (DepositIdentifier _depositId)
   {
-    return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+    return _stake(_depositor, _amount, _delegatee, _claimer, address(0));
+  }
+
+  function _stake(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) internal virtual returns (DepositIdentifier _depositId) {
+    validatorForAtomicEarningPowerCalculation = _validator;
+
+    _depositId = StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+    validatorForDeposit[_depositId] = _validator;
+    validatorStakeWeight[_validator] += _amount;
+    _changeValidatorWeight(_validator);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @inheritdoc Staker
