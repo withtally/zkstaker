@@ -185,6 +185,15 @@ contract ZkStaker is
     return _stake(msg.sender, _amount, _delegatee, _claimer, _validator);
   }
 
+  /// @notice Allows a third party to stake tokens on behalf of a depositor.
+  /// @param _amount The amount of tokens to stake.
+  /// @param _delegatee The address to which voting power is delegated.
+  /// @param _claimer The address that can claim rewards on behalf of the staker.
+  /// @param _validator The address of the validator associated with the stake.
+  /// @param _depositor The address of the depositor on whose behalf the stake is made.
+  /// @param _deadline The timestamp by which the transaction must be completed.
+  /// @param _signature The signature proving the depositor's consent.
+  /// @return _depositId The identifier of the created deposit.
   function stakeOnBehalf(
     uint256 _amount,
     address _delegatee,
@@ -233,6 +242,13 @@ contract ZkStaker is
     validatorForAtomicEarningPowerCalculation = address(0);
   }
 
+  /// @notice Allows an external party to alter the validator associated with a deposit on behalf of
+  /// the depositor.
+  /// @param _depositId The identifier of the deposit to alter.
+  /// @param _newValidator The address of the new validator to associate with the deposit.
+  /// @param _depositor The address of the depositor who owns the deposit.
+  /// @param _deadline The timestamp by which the operation must be completed.
+  /// @param _signature The signature proving the depositor's consent for the operation.
   function alterValidatorOnBehalf(
     Staker.DepositIdentifier _depositId,
     address _newValidator,
@@ -459,6 +475,13 @@ contract ZkStaker is
     return _stake(_depositor, _amount, _delegatee, _claimer, address(0));
   }
 
+  /// @notice Internal function to handle staking with validator specification.
+  /// @param _depositor The address of the depositor who is staking tokens.
+  /// @param _amount The amount of tokens to be staked.
+  /// @param _delegatee The address to which voting power is delegated.
+  /// @param _claimer The address that can claim rewards on behalf of the staker.
+  /// @param _validator The address of the validator associated with the stake.
+  /// @return _depositId The identifier of the created deposit.
   function _stake(
     address _depositor,
     uint256 _amount,
