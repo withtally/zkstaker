@@ -431,6 +431,16 @@ contract ZkStaker is
     }
   }
 
+  /// @notice Checks if a validator is registered.
+  /// @param _validator The address of the validator to check.
+  /// @dev A validator is considered registered if both its BLS12-381 public key and proof of
+  /// possession signature are non-empty.
+  /// @return True if the validator is registered, false otherwise.
+  function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
+    ValidatorKeys memory _keys = registeredValidators[_validator];
+    return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
+  }
+
   /// @notice Checks if a BLS12-381 public key is empty.
   /// @param _pubKey The BLS12-381 public key to check.
   /// @return True if the public key is empty, false otherwise.
