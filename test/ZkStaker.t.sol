@@ -892,13 +892,11 @@ contract AlterValidator is ZkStakerTestBase {
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
       _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
 
+    vm.expectEmit();
+    emit ZkStaker.ValidatorAltered(_depositId, _validator, _newValidator, _amount);
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
-
-    assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
-    assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
   function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
