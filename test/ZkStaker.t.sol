@@ -1345,23 +1345,23 @@ contract ValidatorTotalWeight is ZkStakerTestBase {
     (uint256 boundedInitialStakeWeight,) =
       _boundMintAndStake(_depositor, _initialStakeWeight, _delegatee, _claimer, _validator);
     _initialBonusWeight =
-      bound(_initialBonusWeight, 0, type(uint256).max - boundedInitialStakeWeight);
+      bound(_initialBonusWeight, 0, type(uint248).max - boundedInitialStakeWeight);
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validator, _initialBonusWeight);
 
     (uint256 boundedAdditionalStakeWeight,) =
       _boundMintAndStake(_depositor, _additionalStakeWeight, _delegatee, _claimer, _validator);
-    // _newBonusWeight = bound(
-    //   _newBonusWeight,
-    //   0,
-    //   type(uint256).max - (boundedInitialStakeWeight + boundedAdditionalStakeWeight)
-    // );
-    // vm.prank(validatorStakeAuthority);
-    // zkStaker.setBonusWeight(_validator, _newBonusWeight);
+    _newBonusWeight = bound(
+      _newBonusWeight,
+      0,
+      type(uint256).max - (boundedInitialStakeWeight + boundedAdditionalStakeWeight)
+    );
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validator, _newBonusWeight);
 
-    // uint256 expectedTotalWeight =
-    //   boundedInitialStakeWeight + boundedAdditionalStakeWeight + _newBonusWeight;
-    // assertEq(zkStaker.validatorTotalWeight(_validator), expectedTotalWeight);
+    uint256 expectedTotalWeight =
+      boundedInitialStakeWeight + boundedAdditionalStakeWeight + _newBonusWeight;
+    assertEq(zkStaker.validatorTotalWeight(_validator), expectedTotalWeight);
   }
 }
 
