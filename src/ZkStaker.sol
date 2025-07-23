@@ -265,9 +265,9 @@ contract ZkStaker is
       revert InvalidValidatorKeys();
     }
 
-    _setValidatorKeys(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
     if (address(registry) != address(0)) {
-      _changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
+      _setValidatorKeyOnRegistry(_validatorOwner, _validatorPubKey, _validatorPoP);
     }
   }
 
@@ -275,7 +275,7 @@ contract ZkStaker is
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
   /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
-  function _setValidatorKeys(
+  function _setValidatorKey(
     address _validatorOwner,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
@@ -289,7 +289,7 @@ contract ZkStaker is
   /// @param _validatorOwner The address of the validator owner.
   /// @param _validatorPubKey The BLS12-381 public key of the validator.
   /// @param _validatorPoP The proof-of-possession (PoP) of the validator's public key.
-  function _changeValidatorKey(
+  function _setValidatorKeyOnRegistry(
     address _validatorOwner,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
@@ -303,6 +303,8 @@ contract ZkStaker is
     } else if (_isInRegistry) {
       registry.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
     }
+    // if not in registry and not above threshold, refrain from registering the validator on the
+    // registry
   }
 
   /// @notice Checks if a validator is registered and not removed on the registry.
@@ -401,16 +403,6 @@ contract ZkStaker is
     if (msg.sender != validatorStakeAuthority) {
       revert Staker__Unauthorized("not validator stake authority", msg.sender);
     }
-  }
-
-  /// @notice Checks if a validator is registered.
-  /// @param _validator The address of the validator to check.
-  /// @dev A validator is considered registered if both its BLS12-381 public key and proof of
-  /// possession signature are non-empty.
-  /// @return True if the validator is registered, false otherwise.
-  function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
-    ValidatorKeys memory _keys = registeredValidators[_validator];
-    return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
   }
 
   /// @notice Checks if a BLS12-381 public key is empty.

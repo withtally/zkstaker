@@ -53,6 +53,23 @@ contract ZkStakerTestBase is Test {
     );
   }
 
+  function assertEq(
+    IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
+    IConsensusRegistry.BLS12_381PublicKey memory _expectedPubKey
+  ) internal pure {
+    assertEq(_pubKey.a, _expectedPubKey.a);
+    assertEq(_pubKey.b, _expectedPubKey.b);
+    assertEq(_pubKey.c, _expectedPubKey.c);
+  }
+
+  function assertEq(
+    IConsensusRegistry.BLS12_381Signature memory _pop,
+    IConsensusRegistry.BLS12_381Signature memory _expectedPop
+  ) internal pure {
+    assertEq(_pop.a, _expectedPop.a);
+    assertEq(_pop.b, _expectedPop.b);
+  }
+
   /// @dev Helper function to validate addresses for fuzz tests
   function _validateAddresses(
     address _rewardToken,
@@ -820,11 +837,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
       IConsensusRegistry.BLS12_381Signature memory _pop
     ) = zkStaker.registeredValidators(_validator);
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
+    assertEq(_pubKey, _validatorPubKey);
+    assertEq(_pop, _validatorPoP);
   }
 
   function testFuzz_RegistersValidatorAsStakeAuthority(
@@ -842,11 +856,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
       IConsensusRegistry.BLS12_381Signature memory _pop
     ) = zkStaker.registeredValidators(_validator);
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
+    assertEq(_pubKey, _validatorPubKey);
+    assertEq(_pop, _validatorPoP);
   }
 
   function testFuzz_RegistersValidatorAsOwnerOnTheRegistryWhenAboveThreshold(
@@ -865,11 +876,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
     IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
+    assertEq(_pubKey, _validatorPubKey);
+    assertEq(_pop, _validatorPoP);
   }
 
   function testFuzz_RegistersValidatorAsValidatorStakeAuthorityOnTheRegistryWhenAboveThreshold(
@@ -888,11 +896,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
     IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _validatorPubKey.a);
-    assertEq(_pubKey.b, _validatorPubKey.b);
-    assertEq(_pubKey.c, _validatorPubKey.c);
-    assertEq(_pop.a, _validatorPoP.a);
-    assertEq(_pop.b, _validatorPoP.b);
+    assertEq(_pubKey, _validatorPubKey);
+    assertEq(_pop, _validatorPoP);
   }
 
   function testFuzz_EmitsValidatorKeysSetEvent(
@@ -927,11 +932,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
       IConsensusRegistry.BLS12_381Signature memory _pop
     ) = zkStaker.registeredValidators(_validator);
-    assertEq(_pubKey.a, _newValidatorPubKey.a);
-    assertEq(_pubKey.b, _newValidatorPubKey.b);
-    assertEq(_pubKey.c, _newValidatorPubKey.c);
-    assertEq(_pop.a, _newValidatorPoP.a);
-    assertEq(_pop.b, _newValidatorPoP.b);
+    assertEq(_pubKey, _newValidatorPubKey);
+    assertEq(_pop, _newValidatorPoP);
   }
 
   function testFuzz_ChangesValidatorKeysAsOwnerOnTheRegistryWhenAboveThreshold(
@@ -960,11 +962,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
     IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _newValidatorPubKey.a);
-    assertEq(_pubKey.b, _newValidatorPubKey.b);
-    assertEq(_pubKey.c, _newValidatorPubKey.c);
-    assertEq(_pop.a, _newValidatorPoP.a);
-    assertEq(_pop.b, _newValidatorPoP.b);
+    assertEq(_pubKey, _newValidatorPubKey);
+    assertEq(_pop, _newValidatorPoP);
   }
 
   function testFuzz_ChangesValidatorKeysAsStakeAuthority(
@@ -986,11 +985,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
       IConsensusRegistry.BLS12_381PublicKey memory _pubKey,
       IConsensusRegistry.BLS12_381Signature memory _pop
     ) = zkStaker.registeredValidators(_validator);
-    assertEq(_pubKey.a, _newValidatorPubKey.a);
-    assertEq(_pubKey.b, _newValidatorPubKey.b);
-    assertEq(_pubKey.c, _newValidatorPubKey.c);
-    assertEq(_pop.a, _newValidatorPoP.a);
-    assertEq(_pop.b, _newValidatorPoP.b);
+    assertEq(_pubKey, _newValidatorPubKey);
+    assertEq(_pop, _newValidatorPoP);
   }
 
   function testFuzz_ChangesValidatorKeysAsStakeAuthorityOnTheRegistryWhenAboveThreshold(
@@ -1019,11 +1015,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
     IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
-    assertEq(_pubKey.a, _newValidatorPubKey.a);
-    assertEq(_pubKey.b, _newValidatorPubKey.b);
-    assertEq(_pubKey.c, _newValidatorPubKey.c);
-    assertEq(_pop.a, _newValidatorPoP.a);
-    assertEq(_pop.b, _newValidatorPoP.b);
+    assertEq(_pubKey, _newValidatorPubKey);
+    assertEq(_pop, _newValidatorPoP);
   }
 
   function testFuzz_RevertIf_NotOwnerAndNotValidatorStakeAuthority(
