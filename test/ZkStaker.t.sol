@@ -674,7 +674,7 @@ contract StakeMore is ZkStakerTestBase {
 }
 
 contract Withdraw is ZkStakerTestBase {
-  function testFuzz_WithdrawsTokensFromValidator(
+  function testFuzz_DecreasesValidatorStakeWeight(
     address _depositor,
     uint256 _amount,
     uint256 _withdrawAmount,
@@ -682,8 +682,7 @@ contract Withdraw is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != address(0));
 
     ZkStaker.DepositIdentifier _depositId;
@@ -705,8 +704,7 @@ contract Withdraw is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != address(0));
 
     ZkStaker.DepositIdentifier _depositId;
