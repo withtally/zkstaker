@@ -163,13 +163,12 @@ contract ZkStakerTestBase is Test {
     zkStaker.setRegistry(IConsensusRegistryExtended(address(mockRegistry)));
   }
 
-  function _setRegistryAndRegisterValidator(
+  function _registerValidator(
     address _validator,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) internal {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setMockRegistry();
     vm.prank(_validator);
     zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
   }
@@ -183,7 +182,8 @@ contract ZkStakerTestBase is Test {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     boundedBonusWeightAboveThreshold =
       _boundAndSetBonusWeightAboveThreshold(_validator, _bonusWeightAboveThreshold);
-    _setRegistryAndRegisterValidator(_validator, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validator, _validatorPubKey, _validatorPoP);
   }
 
   function _boundAndSetBonusWeightAboveThreshold(
@@ -209,6 +209,28 @@ contract ZkStakerTestBase is Test {
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validatorOwner, _bonusWeightBelowThreshold);
     return _bonusWeightBelowThreshold;
+  }
+
+  /// @notice Checks if a BLS12-381 public key is empty.
+  /// @param _pubKey The BLS12-381 public key to check.
+  /// @return True if the public key is empty, false otherwise.
+  function _isEmptyBLS12_381PublicKey(IConsensusRegistry.BLS12_381PublicKey memory _pubKey)
+    internal
+    pure
+    returns (bool)
+  {
+    return _pubKey.a == bytes32(0) && _pubKey.b == bytes32(0) && _pubKey.c == bytes32(0);
+  }
+
+  /// @notice Checks if a BLS12-381 signature is empty.
+  /// @param _pop The BLS12-381 proof-of-possession signature to check.
+  /// @return True if the signature is empty, false otherwise.
+  function _isEmptyBLS12_381Signature(IConsensusRegistry.BLS12_381Signature memory _pop)
+    internal
+    pure
+    returns (bool)
+  {
+    return _pop.a == bytes32(0) && _pop.b == bytes16(0);
   }
 }
 
@@ -366,8 +388,7 @@ contract Stake is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     _amount = _boundAndMintGovToken(_depositor, _amount);
 
@@ -390,14 +411,14 @@ contract Stake is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _amount = bound(
       _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
     _mintGovToken(_depositor, _amount);
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.startPrank(_depositor);
     govToken.approve(address(zkStaker), _amount);
@@ -445,6 +466,32 @@ contract Stake is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.weight, _bonusWeightBelowThreshold + _amount);
   }
+
+  function testFuzz_DoesNotAddValidatorToRegistryWhenValidatorWeightIsBelowThreshold(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _amount = bound(_amount, 0, initialValidatorWeightThreshold - 1);
+    _mintGovToken(_depositor, _amount);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stake(_amount, _delegatee, _claimer, _validatorOwner);
+    vm.stopPrank();
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_isEmptyBLS12_381PublicKey(_validator.latest.pubKey), true);
+    assertEq(_isEmptyBLS12_381Signature(_validator.latest.proofOfPossession), true);
+  }
 }
 
 contract StakeMore is ZkStakerTestBase {
@@ -456,8 +503,7 @@ contract StakeMore is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_initialAmount, _depositId) =
@@ -483,10 +529,10 @@ contract StakeMore is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _amount = _boundAndMintGovToken(_depositor, _amount);
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
     ZkStaker.DepositIdentifier _depositId;
     _amount = bound(_amount, 0, initialValidatorWeightThreshold - 1);
     (_amount, _depositId) =
@@ -524,14 +570,14 @@ contract StakeMore is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _stakeMoreAmountAboveThreshold = bound(
       _stakeMoreAmountAboveThreshold,
       initialValidatorWeightThreshold,
       zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
     ZkStaker.DepositIdentifier _depositId;
     (_stakeMoreAmountAboveThreshold, _depositId) = _boundMintAndStake(
       _depositor, _stakeMoreAmountAboveThreshold, _delegatee, _claimer, _validatorOwner
@@ -547,6 +593,40 @@ contract StakeMore is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.weight, _stakeMoreAmountAboveThreshold + _amount);
   }
+
+  function testFuzz_DoesNotAddValidatorToRegistryWhenValidatorWeightIsBelowThreshold(
+    address _depositor,
+    uint256 _amount,
+    uint256 _stakeMoreAmountAboveThreshold,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    ZkStaker.DepositIdentifier _depositId;
+    _amount = bound(_amount, 0, initialValidatorWeightThreshold - 1);
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validatorOwner);
+
+    _stakeMoreAmountAboveThreshold =
+      bound(_stakeMoreAmountAboveThreshold, 0, initialValidatorWeightThreshold - _amount - 1);
+    _mintGovToken(_depositor, _stakeMoreAmountAboveThreshold);
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _stakeMoreAmountAboveThreshold);
+    zkStaker.stakeMore(_depositId, _stakeMoreAmountAboveThreshold);
+    vm.stopPrank();
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.latest.pubKey;
+    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.latest.proofOfPossession;
+    assertEq(_isEmptyBLS12_381PublicKey(_pubKey), true);
+    assertEq(_isEmptyBLS12_381Signature(_pop), true);
+  }
 }
 
 contract AlterValidator is ZkStakerTestBase {
@@ -558,8 +638,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _validator,
     address _newValidator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -579,8 +658,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _validator,
     address _newValidator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
 
     ZkStaker.DepositIdentifier _depositId;
@@ -602,8 +680,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -625,8 +702,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _validator,
     address _newValidator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -647,10 +723,10 @@ contract AlterValidator is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setRegistryAndRegisterValidator(_validator, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validator, _validatorPubKey, _validatorPoP);
     _stakeAmountAboveThreshold = bound(
       _stakeAmountAboveThreshold,
       initialValidatorWeightThreshold,
@@ -681,13 +757,13 @@ contract AlterValidator is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
     _amount = bound(
       _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
-    _setRegistryAndRegisterValidator(_validator, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validator, _validatorPubKey, _validatorPoP);
     _bonusWeightAboveThreshold = _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _newValidator, _newValidatorPubKey, _newValidatorPoP, _bonusWeightAboveThreshold
     );
@@ -719,13 +795,13 @@ contract AlterValidator is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
     _amount = bound(
       _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
-    _setRegistryAndRegisterValidator(_validator, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validator, _validatorPubKey, _validatorPoP);
     _bonusWeightAboveThreshold = _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _newValidator, _newValidatorPubKey, _newValidatorPoP, _bonusWeightAboveThreshold
     );
@@ -738,10 +814,7 @@ contract AlterValidator is ZkStakerTestBase {
 
     IConsensusRegistry.Validator memory _previousValidator =
       zkStaker.registry().validators(_validator);
-    IConsensusRegistry.Validator memory _currentValidator =
-      zkStaker.registry().validators(_newValidator);
-    assertEq(_previousValidator.latest.weight, 0);
-    assertEq(_currentValidator.latest.weight, _amount + _bonusWeightAboveThreshold);
+    assertEq(_previousValidator.latest.removed, true);
   }
 
   function testFuzz_UpdatesDepositEarningPower(
@@ -753,8 +826,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator,
     uint96 _newEarningPower
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -777,8 +849,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator,
     uint96 _newEarningPower
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -800,8 +871,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator,
     uint96 _newEarningPower
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -824,8 +894,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator
   ) public {
     vm.assume(_notDepositor != _depositor);
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -863,8 +932,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator,
     uint256 _multiplierBips
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _multiplierBips = bound(_multiplierBips, 0, 20_000);
     earningPowerCalculator.__setMultiplierBips(_multiplierBips);
 
@@ -891,8 +959,7 @@ contract AlterValidator is ZkStakerTestBase {
     address _newValidator,
     uint256 _fixedEarningPower
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _fixedEarningPower = bound(_fixedEarningPower, 0.1e18, 25_000_000e18);
 
     earningPowerCalculator.__setFixedReturn(_fixedEarningPower);
@@ -958,12 +1025,10 @@ contract SetBonusWeight is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
     _bonusWeightAboveThreshold =
-      bound(_bonusWeightAboveThreshold, initialValidatorWeightThreshold, type(uint256).max);
-
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
+      _boundAndSetBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.weight, _bonusWeightAboveThreshold);
@@ -999,11 +1064,7 @@ contract SetBonusWeight is ZkStakerTestBase {
     _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
     );
-    _bonusWeightBelowThreshold =
-      bound(_bonusWeightBelowThreshold, 0, initialValidatorWeightThreshold - 1);
-
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightBelowThreshold);
+    _boundAndSetBonusWeightBelowThreshold(_validatorOwner, _bonusWeightBelowThreshold);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.removed, true);
@@ -1090,9 +1151,7 @@ contract ValidatorTotalWeight is ZkStakerTestBase {
     uint256 _stakeWeight,
     uint256 _bonusWeight
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
-
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     (uint256 boundedStakeWeight,) =
       _boundMintAndStake(_depositor, _stakeWeight, _delegatee, _claimer, _validator);
     _bonusWeight = bound(_bonusWeight, 0, type(uint256).max - boundedStakeWeight);
@@ -1210,7 +1269,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
   ) public {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _boundAndSetBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(_validatorOwner);
     zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
@@ -1230,7 +1290,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
   ) public {
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _boundAndSetBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
-    _setRegistryAndRegisterValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
 
     vm.prank(validatorStakeAuthority);
     zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
@@ -1286,11 +1347,7 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
-    _bonusWeightAboveThreshold =
-      bound(_bonusWeightAboveThreshold, initialValidatorWeightThreshold, type(uint256).max);
-
-    vm.prank(validatorStakeAuthority);
-    zkStaker.setBonusWeight(_validatorOwner, _bonusWeightAboveThreshold);
+    _boundAndSetBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
     _setMockRegistry();
 
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
@@ -1370,8 +1427,7 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
