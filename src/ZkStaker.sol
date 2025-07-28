@@ -178,8 +178,7 @@ contract ZkStaker is
     _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
     validatorForDeposit[_depositId] = _validator;
     validatorStakeWeight[_validator] += _amount;
-
-    // TODO: Make changes in the registry.
+    _changeValidatorWeight(_validator);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -221,7 +220,7 @@ contract ZkStaker is
     _revertIfNotValidatorStakeAuthority();
     emit ValidatorBonusWeightSet(_validator, _newBonusWeight);
     validatorBonusWeight[_validator] = _newBonusWeight;
-    // TODO: Make changes in the registry.
+    _changeValidatorWeight(_validator);
   }
 
   /// @notice Sets the consensus registry for the ZkStaker contract.
@@ -345,7 +344,8 @@ contract ZkStaker is
     validatorStakeWeight[_oldValidator] -= _depositBalance;
     validatorStakeWeight[_newValidator] += _depositBalance;
 
-    // TODO: Make changes in the registry.
+    _changeValidatorWeight(_oldValidator);
+    _changeValidatorWeight(_newValidator);
 
     emit ValidatorAltered(_depositId, _oldValidator, _newValidator, _newEarningPower);
     validatorForDeposit[_depositId] = _newValidator;
@@ -372,9 +372,35 @@ contract ZkStaker is
     address _depositValidator = validatorForDeposit[_depositId];
     // TODO: atomically store validator for earning power calculation.
     validatorStakeWeight[_depositValidator] += _amount;
-    // TODO: Make changes in the registry.
+    _changeValidatorWeight(_depositValidator);
 
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+  }
+
+  /// @notice Updates the validator's weight on the registry.
+  /// @dev This function checks if the validator is registered and updates its weight on the
+  /// registry.
+  /// If the validator is not in the registry and its weight is above the threshold, it is added.
+  /// If the validator is in the registry, its weight is updated, and it is removed if below the
+  /// threshold.
+  /// @param _validatorOwner The address of the validator owner whose weight is being updated.
+  function _changeValidatorWeight(address _validatorOwner) internal virtual {
+    if (!_isValidatorRegistered(_validatorOwner)) return;
+    if (address(registry) == address(0)) return;
+    ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
+    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
+
+    bool _isInRegistry = _isValidatorRegisteredAndNotRemovedOnTheRegistry(_validatorOwner);
+    bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;
+
+    if (!_isInRegistry && _isAboveThreshold) {
+      registry.add(_validatorOwner, isLeaderDefault, true, _newWeight, _keys.pubKey, _keys.pop);
+    }
+
+    if (_isInRegistry) {
+      registry.changeValidatorWeight(_validatorOwner, _newWeight);
+      if (!_isAboveThreshold) registry.remove(_validatorOwner);
+    }
   }
 
   /// @notice Internal helper method to set the validator stake authority.
@@ -403,6 +429,16 @@ contract ZkStaker is
     if (msg.sender != validatorStakeAuthority) {
       revert Staker__Unauthorized("not validator stake authority", msg.sender);
     }
+  }
+
+  /// @notice Checks if a validator is registered.
+  /// @param _validator The address of the validator to check.
+  /// @dev A validator is considered registered if both its BLS12-381 public key and proof of
+  /// possession signature are non-empty.
+  /// @return True if the validator is registered, false otherwise.
+  function _isValidatorRegistered(address _validator) internal virtual returns (bool) {
+    ValidatorKeys memory _keys = registeredValidators[_validator];
+    return !(_isEmptyBLS12_381PublicKey(_keys.pubKey) && _isEmptyBLS12_381Signature(_keys.pop));
   }
 
   /// @notice Checks if a BLS12-381 public key is empty.
