@@ -886,8 +886,8 @@ contract AlterValidator is ZkStakerTestBase {
     address _validator,
     address _newValidator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_validator != _newValidator);
 
     ZkStaker.DepositIdentifier _depositId;
     (_amount, _depositId) =
@@ -897,29 +897,6 @@ contract AlterValidator is ZkStakerTestBase {
     emit ZkStaker.ValidatorAltered(_depositId, _validator, _newValidator, _amount);
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
-  }
-
-  function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
-    address _depositor,
-    uint256 _amount,
-    address _delegatee,
-    address _claimer,
-    address _validator,
-    address _newValidator
-  ) public {
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
-    vm.assume(_validator != _newValidator);
-
-    ZkStaker.DepositIdentifier _depositId;
-    (_amount, _depositId) =
-      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
-
-    vm.prank(_depositor);
-    zkStaker.alterValidator(_depositId, _newValidator);
-
-    assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
-    assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
   function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
@@ -943,6 +920,29 @@ contract AlterValidator is ZkStakerTestBase {
     vm.expectEmit();
     emit ZkStaker.ValidatorTotalWeightUpdated(_newValidator, _amount);
     zkStaker.alterValidator(_depositId, _newValidator);
+  }
+
+  function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_validator != _newValidator);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+    assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
+    assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
   function testFuzz_AllowsTheDepositorToReiterateTheirExistingValidator(
@@ -1811,5 +1811,116 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     vm.prank(_validator);
     vm.expectRevert(abi.encodeWithSelector(ZkStaker.InvalidValidatorKeys.selector));
     zkStaker.changeValidatorKey(_validator, _validatorPubKey, _validatorPoP);
+  }
+}
+
+contract ChangeValidatorLeader is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_ChangesValidatorLeader(address _validator) public {
+    vm.assume(_validator != address(this));
+    vm.prank(validatorStakeAuthority);
+    zkStaker.changeValidatorLeader(_validator, true);
+
+    assertEq(zkStaker.registry().validators(_validator).latest.leader, true);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, address _validator) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.changeValidatorLeader(_validator, true);
+  }
+}
+
+contract CommitValidatorCommittee is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_CommitsValidatorCommittee() public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.commitValidatorCommittee();
+
+    uint64 _validatorCommit = zkStaker.registry().validatorsCommit();
+    assertEq(_validatorCommit, 1);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.commitValidatorCommittee();
+  }
+}
+
+contract SetCommitteeActivationDelay is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_SetsCommitteeActivationDelay(uint256 _delay) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setCommitteeActivationDelay(_delay);
+
+    assertEq(zkStaker.registry().committeeActivationDelay(), _delay);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, uint256 _delay) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.setCommitteeActivationDelay(_delay);
+  }
+}
+
+contract UpdateLeaderSelection is ZkStakerTestBase {
+  function setUp() public override {
+    super.setUp();
+    _setMockRegistry();
+  }
+
+  function testFuzz_UpdatesLeaderSelection(uint64 _frequency, bool _weighted) public {
+    vm.prank(validatorStakeAuthority);
+    zkStaker.updateLeaderSelection(_frequency, _weighted);
+
+    assertEq(zkStaker.registry().leaderSelection().latest.frequency, _frequency);
+    assertEq(zkStaker.registry().leaderSelection().latest.weighted, _weighted);
+  }
+
+  function testFuzz_RevertIf_NotValidatorStakeAuthority(
+    address _caller,
+    uint64 _frequency,
+    bool _weighted
+  ) public {
+    vm.assume(_caller != validatorStakeAuthority);
+
+    vm.prank(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
+      )
+    );
+    zkStaker.updateLeaderSelection(_frequency, _weighted);
   }
 }

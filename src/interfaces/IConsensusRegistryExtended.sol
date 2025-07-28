@@ -18,4 +18,19 @@ interface IConsensusRegistryExtended is IConsensusRegistry {
   /// @return _validator A struct containing the validator's details, including status and other
   /// relevant attributes.
   function validators(address _validatorOwner) external returns (Validator memory _validator);
+
+  /// @notice Retrieves the current validator commit number.
+  /// @dev This function is used to track the number of validator commits.
+  /// @return The current validator commit number.
+  function validatorsCommit() external view returns (uint64);
+
+  /// @notice Retrieves the current committee activation delay.
+  /// @dev This function is used to track the delay before a committee commit becomes active.
+  /// @return The current committee activation delay.
+  function committeeActivationDelay() external view returns (uint256);
+
+  /// @notice Retrieves the current leader selection configuration.
+  /// @dev This function is used to track the leader selection configuration.
+  /// @return The current leader selection configuration.
+  function leaderSelection() external view returns (LeaderSelection memory);
 }
