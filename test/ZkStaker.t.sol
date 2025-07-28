@@ -6,7 +6,8 @@ import {ZkStaker, Staker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.so
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
 import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
-import {MockFullEarningPowerCalculator} from "staker-test/mocks/MockFullEarningPowerCalculator.sol";
+import {MockFullEarningPowerCalculatorExtended} from
+  "test/mocks/MockFullEarningPowerCalculatorExtended.sol";
 import {
   IConsensusRegistryExtended,
   IConsensusRegistry
@@ -16,7 +17,7 @@ import {ConsensusRegistryMock} from "test/mocks/ConsensusRegistryMock.sol";
 contract ZkStakerTestBase is Test {
   ERC20Fake rewardToken;
   ERC20VotesMock govToken;
-  MockFullEarningPowerCalculator earningPowerCalculator;
+  MockFullEarningPowerCalculatorExtended earningPowerCalculator;
   ZkStaker zkStaker;
 
   address admin;
@@ -30,7 +31,7 @@ contract ZkStakerTestBase is Test {
   function setUp() public virtual {
     rewardToken = new ERC20Fake();
     govToken = new ERC20VotesMock();
-    earningPowerCalculator = new MockFullEarningPowerCalculator();
+    earningPowerCalculator = new MockFullEarningPowerCalculatorExtended();
     maxBumpTip = 1e18;
     initialTotalStakeCap = 1e24;
     admin = makeAddr("admin");
@@ -487,6 +488,27 @@ contract Stake is ZkStakerTestBase {
     assertEq(_validator.latest.weight, _bonusWeightBelowThreshold + _amount);
   }
 
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSet(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stake(_amount, _delegatee, _claimer, _validator);
+    vm.stopPrank();
+  }
+
   function testFuzz_DoesNotAddValidatorToRegistryWhenValidatorWeightIsBelowThreshold(
     address _depositor,
     uint256 _amount,
@@ -671,6 +693,32 @@ contract StakeMore is ZkStakerTestBase {
     assertEq(_isEmptyBLS12_381PublicKey(_pubKey), true);
     assertEq(_isEmptyBLS12_381Signature(_pop), true);
   }
+
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSet(
+    address _depositor,
+    uint256 _initialAmount,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_initialAmount, _depositId) =
+      _boundMintAndStake(_depositor, _initialAmount, _delegatee, _claimer, _validator);
+
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    zkStaker.stakeMore(_depositId, _amount);
+    vm.stopPrank();
+  }
 }
 
 contract Withdraw is ZkStakerTestBase {
@@ -782,6 +830,31 @@ contract Withdraw is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_validator.latest.removed, true);
   }
+
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSet(
+    address _depositor,
+    uint256 _amount,
+    uint256 _withdrawAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+    vm.assume(_validator != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    _withdrawAmount = bound(_withdrawAmount, 0, _amount);
+
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    vm.prank(_depositor);
+    zkStaker.withdraw(_depositId, _withdrawAmount);
+  }
 }
 
 contract AlterValidator is ZkStakerTestBase {
@@ -803,6 +876,27 @@ contract AlterValidator is ZkStakerTestBase {
     zkStaker.alterValidator(_depositId, _newValidator);
 
     assertEq(zkStaker.validatorForDeposit(_depositId), _newValidator);
+  }
+
+  function testFuzz_EmitsValidatorAlteredEvent(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    vm.expectEmit();
+    emit ZkStaker.ValidatorAltered(_depositId, _validator, _newValidator, _amount);
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
   }
 
   function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
@@ -1042,6 +1136,29 @@ contract AlterValidator is ZkStakerTestBase {
     assertEq(zkStaker.depositorTotalEarningPower(_depositor), _newEarningPower);
   }
 
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSet(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _newValidator
+    );
+
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+  }
+
   function testFuzz_RevertIf_NotDepositOwner(
     address _depositor,
     address _notDepositor,
@@ -1133,6 +1250,55 @@ contract AlterValidator is ZkStakerTestBase {
     assertEq(_deposit.earningPower, _fixedEarningPower);
     assertEq(zkStaker.totalEarningPower(), _fixedEarningPower);
     assertEq(zkStaker.depositorTotalEarningPower(_depositor), _fixedEarningPower);
+  }
+}
+
+contract AlterClaimer is ZkStakerTestBase {
+  function testFuzz_SetsValidatorForAtomicEarningPowerCalculation(
+    address _depositor,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _firstClaimer,
+    address _newClaimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_firstClaimer != address(0));
+    vm.assume(_newClaimer != address(0) && _newClaimer != _firstClaimer);
+
+    Staker.DepositIdentifier _depositId;
+    (_depositAmount, _depositId) =
+      _boundMintAndStake(_depositor, _depositAmount, _delegatee, _firstClaimer, _validator);
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    vm.prank(_depositor);
+    zkStaker.alterClaimer(_depositId, _newClaimer);
+  }
+}
+
+contract ClaimReward is ZkStakerTestBase {
+  function testFuzz_DepositorReceivesRewardsWhenClaiming(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    Staker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    vm.prank(_depositor);
+    zkStaker.claimReward(_depositId);
   }
 }
 
