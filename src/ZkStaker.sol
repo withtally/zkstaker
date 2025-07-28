@@ -57,6 +57,11 @@ contract ZkStaker is
   /// @param bonusWeight The new bonus weight of the validator.
   event ValidatorBonusWeightSet(address indexed validator, uint256 indexed bonusWeight);
 
+  /// @notice Emitted when the validator weight is updated.
+  /// @param validator The address of the validator.
+  /// @param newWeight The new weight of the validator.
+  event ValidatorTotalWeightUpdated(address indexed validator, uint256 indexed newWeight);
+
   /// @notice Emitted when the validator weight threshold is set.
   /// @param oldThreshold The previous validator weight threshold.
   /// @param newThreshold The new validator weight threshold.
@@ -377,6 +382,28 @@ contract ZkStaker is
     StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
   }
 
+  /// @notice Withdraws a specified amount from a deposit.
+  /// @param deposit The deposit from which the amount is to be withdrawn.
+  /// @param _depositId The identifier of the deposit.
+  /// @param _amount The amount to be withdrawn from the deposit.
+  /// @dev This function updates the validator's stake weight and adjusts the validator's weight
+  /// on the registry. It overrides the _withdraw function from the Staker contract.
+  function _withdraw(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
+    internal
+    virtual
+    override(Staker)
+  {
+    address _depositValidator = validatorForDeposit[_depositId];
+    // TODO: atomically store validator for earning power calculation.
+
+    if (_depositValidator != address(0)) {
+      validatorStakeWeight[_depositValidator] -= _amount;
+      _changeValidatorWeight(_depositValidator);
+    }
+
+    Staker._withdraw(deposit, _depositId, _amount);
+  }
+
   /// @notice Updates the validator's weight on the registry.
   /// @dev This function checks if the validator is registered and updates its weight on the
   /// registry.
@@ -385,10 +412,12 @@ contract ZkStaker is
   /// threshold.
   /// @param _validatorOwner The address of the validator owner whose weight is being updated.
   function _changeValidatorWeight(address _validatorOwner) internal virtual {
+    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
+    emit ValidatorTotalWeightUpdated(_validatorOwner, _newWeight);
+
     if (!_isValidatorRegistered(_validatorOwner)) return;
     if (address(registry) == address(0)) return;
     ValidatorKeys memory _keys = registeredValidators[_validatorOwner];
-    uint256 _newWeight = validatorTotalWeight(_validatorOwner);
 
     bool _isInRegistry = _isValidatorRegisteredAndNotRemovedOnTheRegistry(_validatorOwner);
     bool _isAboveThreshold = _newWeight >= validatorWeightThreshold;

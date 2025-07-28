@@ -402,6 +402,26 @@ contract Stake is ZkStakerTestBase {
     assertEq(zkStaker.validatorStakeWeight(_validator), _amount);
   }
 
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _amount);
+    zkStaker.stake(_amount, _delegatee, _claimer, _validator);
+    vm.stopPrank();
+  }
+
   function testFuzz_AddsValidatorToRegistryWhenValidatorWeightIsAboveThreshold(
     address _depositor,
     uint256 _amount,
@@ -519,6 +539,30 @@ contract StakeMore is ZkStakerTestBase {
     assertEq(zkStaker.validatorStakeWeight(_validator), _initialAmount + _amount);
   }
 
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _depositor,
+    uint256 _initialAmount,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_initialAmount, _depositId) =
+      _boundMintAndStake(_depositor, _initialAmount, _delegatee, _claimer, _validator);
+    _amount = _boundAndMintGovToken(_depositor, _amount);
+
+    vm.startPrank(_depositor);
+    govToken.approve(address(zkStaker), _amount);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _initialAmount + _amount);
+    zkStaker.stakeMore(_depositId, _amount);
+    vm.stopPrank();
+  }
+
   function testFuzz_AddsValidatorToRegistryWhenValidatorWeightIsAboveThreshold(
     address _depositor,
     uint256 _amount,
@@ -629,6 +673,117 @@ contract StakeMore is ZkStakerTestBase {
   }
 }
 
+contract Withdraw is ZkStakerTestBase {
+  function testFuzz_DecreasesValidatorStakeWeight(
+    address _depositor,
+    uint256 _amount,
+    uint256 _withdrawAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_validator != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    _withdrawAmount = bound(_withdrawAmount, 0, _amount);
+
+    vm.prank(_depositor);
+    zkStaker.withdraw(_depositId, _withdrawAmount);
+
+    assertEq(zkStaker.validatorStakeWeight(_validator), _amount - _withdrawAmount);
+  }
+
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _depositor,
+    uint256 _amount,
+    uint256 _withdrawAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_validator != address(0));
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    _withdrawAmount = bound(_withdrawAmount, 0, _amount);
+
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _amount - _withdrawAmount);
+    vm.prank(_depositor);
+    zkStaker.withdraw(_depositId, _withdrawAmount);
+  }
+
+  function testFuzz_UpdatesValidatorWeightOnRegistryWhenValidatorIsAlreadyRegistered(
+    address _depositor,
+    uint256 _stakeAmount,
+    uint256 _withdrawAmount,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_validatorOwner != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _stakeAmount = bound(
+      _stakeAmount,
+      initialValidatorWeightThreshold,
+      zkStaker.totalStakeCap() - zkStaker.totalStaked()
+    );
+    ZkStaker.DepositIdentifier _depositId;
+    (_stakeAmount, _depositId) =
+      _boundMintAndStake(_depositor, _stakeAmount, _delegatee, _claimer, _validatorOwner);
+    _withdrawAmount = bound(_withdrawAmount, 0, _stakeAmount);
+
+    vm.prank(_depositor);
+    zkStaker.withdraw(_depositId, _withdrawAmount);
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_validator.latest.weight, _stakeAmount - _withdrawAmount);
+  }
+
+  function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(
+    address _depositor,
+    uint256 _stakeAmount,
+    uint256 _withdrawAmount,
+    address _delegatee,
+    address _claimer,
+    address _validatorOwner,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
+  ) public {
+    vm.assume(_validatorOwner != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    _setMockRegistry();
+    _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
+    _stakeAmount = bound(
+      _stakeAmount,
+      initialValidatorWeightThreshold,
+      zkStaker.totalStakeCap() - zkStaker.totalStaked()
+    );
+    ZkStaker.DepositIdentifier _depositId;
+    (_stakeAmount, _depositId) =
+      _boundMintAndStake(_depositor, _stakeAmount, _delegatee, _claimer, _validatorOwner);
+    _withdrawAmount =
+      bound(_withdrawAmount, _stakeAmount - initialValidatorWeightThreshold + 1, _stakeAmount);
+
+    vm.prank(_depositor);
+    zkStaker.withdraw(_depositId, _withdrawAmount);
+
+    IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
+    assertEq(_validator.latest.removed, true);
+  }
+}
+
 contract AlterValidator is ZkStakerTestBase {
   function testFuzz_ChangesTheValidatorOfTheAssociatedDeposit(
     address _depositor,
@@ -673,6 +828,29 @@ contract AlterValidator is ZkStakerTestBase {
     assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+
+    vm.prank(_depositor);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _previousValidatorStakeWeight - _amount);
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_newValidator, _amount);
+    zkStaker.alterValidator(_depositId, _newValidator);
+  }
+
   function testFuzz_AllowsTheDepositorToReiterateTheirExistingValidator(
     address _depositor,
     uint256 _amount,
@@ -692,26 +870,6 @@ contract AlterValidator is ZkStakerTestBase {
 
     assertEq(_previousValidatorStakeWeight, _amount);
     assertEq(zkStaker.validatorStakeWeight(_validator), _amount);
-  }
-
-  function testFuzz_EmitsValidatorAlteredEvent(
-    address _depositor,
-    uint256 _amount,
-    address _delegatee,
-    address _claimer,
-    address _validator,
-    address _newValidator
-  ) public {
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
-
-    ZkStaker.DepositIdentifier _depositId;
-    (_amount, _depositId) =
-      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-
-    vm.expectEmit();
-    emit ZkStaker.ValidatorAltered(_depositId, _validator, _newValidator, _amount);
-    vm.prank(_depositor);
-    zkStaker.alterValidator(_depositId, _newValidator);
   }
 
   function testFuzz_AddsValidatorToRegistryWhenValidatorIsNotRegisteredAndAboveThreshold(
@@ -1018,6 +1176,16 @@ contract SetBonusWeight is ZkStakerTestBase {
     zkStaker.setBonusWeight(_validator, _newBonusWeight);
   }
 
+  function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
+    address _validator,
+    uint256 _newBonusWeight
+  ) public {
+    vm.expectEmit();
+    emit ZkStaker.ValidatorTotalWeightUpdated(_validator, _newBonusWeight);
+    vm.prank(validatorStakeAuthority);
+    zkStaker.setBonusWeight(_validator, _newBonusWeight);
+  }
+
   function testFuzz_AddsValidatorToRegistryWhenBonusWeightIsAboveThreshold(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
@@ -1177,7 +1345,7 @@ contract ValidatorTotalWeight is ZkStakerTestBase {
     (uint256 boundedInitialStakeWeight,) =
       _boundMintAndStake(_depositor, _initialStakeWeight, _delegatee, _claimer, _validator);
     _initialBonusWeight =
-      bound(_initialBonusWeight, 0, type(uint256).max - boundedInitialStakeWeight);
+      bound(_initialBonusWeight, 0, type(uint248).max - boundedInitialStakeWeight);
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validator, _initialBonusWeight);
 
@@ -1427,7 +1595,8 @@ contract ChangeValidatorKey is ZkStakerTestBase {
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _validatorPoP
   ) public {
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_delegatee != address(0));
+    vm.assume(_claimer != address(0));
     _assumeValidKeys(_validatorPubKey, _validatorPoP);
     _setRegistryAndRegisterValidatorWithBonusWeightAboveThreshold(
       _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
