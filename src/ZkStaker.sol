@@ -91,6 +91,16 @@ contract ZkStaker is
   /// @notice Thrown when the validator keys are invalid.
   error InvalidValidatorKeys();
 
+  /// @notice Type hash used when encoding data for `stakeOnBehalf` calls.
+  bytes32 public constant STAKE_WITH_VALIDATOR_TYPEHASH = keccak256(
+    "Stake(uint256 amount,address delegatee,address claimer,address validator,address depositor,uint256 deadline)"
+  );
+
+  /// @notice Type hash used when encoding data for `alterClaimerOnBehalf` calls.
+  bytes32 public constant ALTER_VALIDATOR_TYPEHASH = keccak256(
+    "AlterValidator(uint256 depositId,address newValidator,address depositor,uint256 deadline)"
+  );
+
   /// @notice Struct to store the validator keys.
   /// @param pubKey The BLS12-381 public key of the validator.
   /// @param pop The BLS12-381 proof-of-possession signature of the validator.
@@ -209,7 +219,7 @@ contract ZkStaker is
       _hashTypedDataV4(
         keccak256(
           abi.encode(
-            STAKE_TYPEHASH,
+            STAKE_WITH_VALIDATOR_TYPEHASH,
             _amount,
             _delegatee,
             _claimer,
@@ -262,7 +272,12 @@ contract ZkStaker is
       _hashTypedDataV4(
         keccak256(
           abi.encode(
-            STAKE_TYPEHASH, _depositId, _newValidator, _depositor, _useNonce(_depositor), _deadline
+            ALTER_VALIDATOR_TYPEHASH,
+            _depositId,
+            _newValidator,
+            _depositor,
+            _useNonce(_depositor),
+            _deadline
           )
         )
       ),
