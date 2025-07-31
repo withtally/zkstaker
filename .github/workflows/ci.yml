@@ -28,7 +28,7 @@ jobs:
       - name: Build contracts to get sizes
         run: |
           forge --version
-          forge build --sizes
+          forge build --sizes --zksync
 
   test:
     runs-on: ubuntu-latest
