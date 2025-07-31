@@ -1,5 +1,6 @@
 [profile.default]
-  evm_version = "paris"
+  evm_version = "cancun"
+  fuzz = { no_zksync_reserved_addresses = true }
   optimizer = true
   optimizer_runs = 4000
   remappings = [

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.23;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
 import {PercentAssertions} from "staker-test/helpers/PercentAssertions.sol";
@@ -166,6 +166,7 @@ contract ClaimRewards is IntegrationTest, PercentAssertions {
     assertEq(zkStaker.unclaimedReward(_depositId), 0);
   }
 
+  // TODO: This test is being skipped right now
   function testForkFuzz_CorrectlyUnstakeAndClaimRewardsAfterDuration(
     address _depositor,
     uint96 _amount,
