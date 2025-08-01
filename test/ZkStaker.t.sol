@@ -202,12 +202,13 @@ contract ZkStakerTestBase is Test {
     return _bonusWeightAboveThreshold;
   }
 
+  // !! ConsensusRegistry forbids validator with 0 weight
   function _boundAndSetBonusWeightBelowThreshold(
     address _validatorOwner,
     uint256 _bonusWeightBelowThreshold
   ) internal returns (uint256) {
     _bonusWeightBelowThreshold =
-      bound(_bonusWeightBelowThreshold, 0, initialValidatorWeightThreshold - 1);
+      bound(_bonusWeightBelowThreshold, 1, initialValidatorWeightThreshold - 1);
     vm.prank(validatorStakeAuthority);
     zkStaker.setBonusWeight(_validatorOwner, _bonusWeightBelowThreshold);
     return _bonusWeightBelowThreshold;

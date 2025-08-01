@@ -8,6 +8,7 @@
     "openzeppelin/=lib/staker/lib/openzeppelin-contracts/contracts/",
     "staker/=lib/staker/src/",
     "staker-test/=lib/staker/test/",
+    "@openzeppelin/contracts-upgradeable-v4/=lib/era-contracts/lib/openzeppelin-contracts-upgradeable-v4/contracts/",
   ]
   solc_version = "0.8.28"
   verbosity = 3
