@@ -1150,8 +1150,6 @@ contract AlterValidator is ZkStakerTestBase {
     address _validator,
     address _newValidator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
     _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
 
@@ -1643,7 +1641,7 @@ contract AlterValidatorOnBehalf is ZkStakerTestBase {
     uint256 _randomSeed,
     uint256 _deadline
   ) public {
-    vm.assume(_delegatee != address(0) && _claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     _deadline = bound(_deadline, block.timestamp, type(uint256).max);
     _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
     address _depositor = vm.addr(_depositorPrivateKey);
@@ -1670,25 +1668,21 @@ contract AlterValidatorOnBehalf is ZkStakerTestBase {
 
     // Here we use `_randomSeed` as an arbitrary source of randomness to replace a legit parameter
     // with an attack-like one.
-    if (_randomSeed % 6 == 0) {
-      _depositAmount = uint256(keccak256(abi.encode(_depositAmount)));
-    } else if (_randomSeed % 6 == 1) {
-      _delegatee = address(uint160(uint256(keccak256(abi.encode(_delegatee)))));
-    } else if (_randomSeed % 6 == 2) {
+    if (_randomSeed % 5 == 0) {
+      _newValidator = address(uint160(uint256(keccak256(abi.encode(_newValidator)))));
+    } else if (_randomSeed % 5 == 1) {
       _depositor = address(uint160(uint256(keccak256(abi.encode(_depositor)))));
-    } else if (_randomSeed % 6 == 3) {
+    } else if (_randomSeed % 5 == 2) {
       _messageHash = _modifyMessage(_messageHash, uint256(keccak256(abi.encode(_randomSeed))));
-    } else if (_randomSeed % 6 == 4) {
+    } else if (_randomSeed % 5 == 3) {
       _deadline = uint256(keccak256(abi.encode(_deadline)));
     }
     bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
-    if (_randomSeed % 6 == 5) _signature = _modifySignature(_signature, _randomSeed);
+    if (_randomSeed % 5 == 4) _signature = _modifySignature(_signature, _randomSeed);
 
-    vm.prank(_sender);
     vm.expectRevert(StakerOnBehalf.StakerOnBehalf__InvalidSignature.selector);
-    zkStaker.stakeOnBehalf(
-      _depositAmount, _delegatee, _claimer, _validator, _depositor, _deadline, _signature
-    );
+    vm.prank(_sender);
+    zkStaker.alterValidatorOnBehalf(_depositId, _newValidator, _depositor, _deadline, _signature);
   }
 }
 
@@ -1725,8 +1719,7 @@ contract ClaimReward is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     Staker.DepositIdentifier _depositId;
     (_amount, _depositId) =

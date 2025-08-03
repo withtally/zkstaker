@@ -93,12 +93,12 @@ contract ZkStaker is
 
   /// @notice Type hash used when encoding data for `stakeOnBehalf` calls.
   bytes32 public constant STAKE_WITH_VALIDATOR_TYPEHASH = keccak256(
-    "Stake(uint256 amount,address delegatee,address claimer,address validator,address depositor,uint256 deadline)"
+    "Stake(uint256 amount,address delegatee,address claimer,address validator,address depositor,uint256 nonce,uint256 deadline)"
   );
 
-  /// @notice Type hash used when encoding data for `alterClaimerOnBehalf` calls.
+  /// @notice Type hash used when encoding data for `alterValidatorOnBehalf` calls.
   bytes32 public constant ALTER_VALIDATOR_TYPEHASH = keccak256(
-    "AlterValidator(uint256 depositId,address newValidator,address depositor,uint256 deadline)"
+    "AlterValidator(uint256 depositId,address newValidator,address depositor,uint256 nonce,uint256 deadline)"
   );
 
   /// @notice Struct to store the validator keys.
