@@ -91,6 +91,16 @@ contract ZkStaker is
   /// @notice Thrown when the validator keys are invalid.
   error InvalidValidatorKeys();
 
+  /// @notice Type hash used when encoding data for `stakeOnBehalf` calls.
+  bytes32 public constant STAKE_WITH_VALIDATOR_TYPEHASH = keccak256(
+    "Stake(uint256 amount,address delegatee,address claimer,address validator,address depositor,uint256 nonce,uint256 deadline)"
+  );
+
+  /// @notice Type hash used when encoding data for `alterValidatorOnBehalf` calls.
+  bytes32 public constant ALTER_VALIDATOR_TYPEHASH = keccak256(
+    "AlterValidator(uint256 depositId,address newValidator,address depositor,uint256 nonce,uint256 deadline)"
+  );
+
   /// @notice Struct to store the validator keys.
   /// @param pubKey The BLS12-381 public key of the validator.
   /// @param pop The BLS12-381 proof-of-possession signature of the validator.
@@ -182,14 +192,47 @@ contract ZkStaker is
     virtual
     returns (Staker.DepositIdentifier _depositId)
   {
-    validatorForAtomicEarningPowerCalculation = _validator;
+    return _stake(msg.sender, _amount, _delegatee, _claimer, _validator);
+  }
 
-    _depositId = _stake(msg.sender, _amount, _delegatee, _claimer);
-    validatorForDeposit[_depositId] = _validator;
-    validatorStakeWeight[_validator] += _amount;
-    _changeValidatorWeight(_validator);
-
-    validatorForAtomicEarningPowerCalculation = address(0);
+  /// @notice Allows a third party to stake tokens on behalf of a depositor.
+  /// @param _amount The amount of tokens to stake.
+  /// @param _delegatee The address to which voting power is delegated.
+  /// @param _claimer The address that can claim rewards on behalf of the staker.
+  /// @param _validator The address of the validator associated with the stake.
+  /// @param _depositor The address of the depositor on whose behalf the stake is made.
+  /// @param _deadline The timestamp by which the transaction must be completed.
+  /// @param _signature The signature proving the depositor's consent.
+  /// @return _depositId The identifier of the created deposit.
+  function stakeOnBehalf(
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _depositor,
+    uint256 _deadline,
+    bytes memory _signature
+  ) external virtual returns (DepositIdentifier _depositId) {
+    _revertIfPastDeadline(_deadline);
+    _revertIfSignatureIsNotValidNow(
+      _depositor,
+      _hashTypedDataV4(
+        keccak256(
+          abi.encode(
+            STAKE_WITH_VALIDATOR_TYPEHASH,
+            _amount,
+            _delegatee,
+            _claimer,
+            _validator,
+            _depositor,
+            _useNonce(_depositor),
+            _deadline
+          )
+        )
+      ),
+      _signature
+    );
+    _depositId = _stake(_depositor, _amount, _delegatee, _claimer, _validator);
   }
 
   /// @notice Allows a user to alter the validator associated with a deposit.
@@ -206,6 +249,43 @@ contract ZkStaker is
     _revertIfNotDepositOwner(deposit, msg.sender);
     _alterValidator(deposit, _depositId, _newValidator);
 
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
+
+  /// @notice Allows an external party to alter the validator associated with a deposit on behalf of
+  /// the depositor.
+  /// @param _depositId The identifier of the deposit to alter.
+  /// @param _newValidator The address of the new validator to associate with the deposit.
+  /// @param _depositor The address of the depositor who owns the deposit.
+  /// @param _deadline The timestamp by which the operation must be completed.
+  /// @param _signature The signature proving the depositor's consent for the operation.
+  function alterValidatorOnBehalf(
+    Staker.DepositIdentifier _depositId,
+    address _newValidator,
+    address _depositor,
+    uint256 _deadline,
+    bytes memory _signature
+  ) external virtual {
+    _revertIfPastDeadline(_deadline);
+    _revertIfSignatureIsNotValidNow(
+      _depositor,
+      _hashTypedDataV4(
+        keccak256(
+          abi.encode(
+            ALTER_VALIDATOR_TYPEHASH,
+            _depositId,
+            _newValidator,
+            _depositor,
+            _useNonce(_depositor),
+            _deadline
+          )
+        )
+      ),
+      _signature
+    );
+    validatorForAtomicEarningPowerCalculation = _newValidator;
+    Deposit storage deposit = deposits[_depositId];
+    _alterValidator(deposit, _depositId, _newValidator);
     validatorForAtomicEarningPowerCalculation = address(0);
   }
 
@@ -400,13 +480,38 @@ contract ZkStaker is
 
   /// @inheritdoc Staker
   /// @dev We override this function to resolve ambiguity between inherited contracts.
+  /// The validator is assumed to be address(0) when not explicitly specified.
   function _stake(address _depositor, uint256 _amount, address _delegatee, address _claimer)
     internal
     virtual
     override(Staker, StakerCapDeposits)
     returns (DepositIdentifier _depositId)
   {
-    return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+    return _stake(_depositor, _amount, _delegatee, _claimer, address(0));
+  }
+
+  /// @notice Internal function to handle staking with validator specification.
+  /// @param _depositor The address of the depositor who is staking tokens.
+  /// @param _amount The amount of tokens to be staked.
+  /// @param _delegatee The address to which voting power is delegated.
+  /// @param _claimer The address that can claim rewards on behalf of the staker.
+  /// @param _validator The address of the validator associated with the stake.
+  /// @return _depositId The identifier of the created deposit.
+  function _stake(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator
+  ) internal virtual returns (DepositIdentifier _depositId) {
+    validatorForAtomicEarningPowerCalculation = _validator;
+
+    _depositId = StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+    validatorForDeposit[_depositId] = _validator;
+    validatorStakeWeight[_validator] += _amount;
+    _changeValidatorWeight(_validator);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
   }
 
   /// @inheritdoc Staker

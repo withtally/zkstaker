@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {Test, Vm} from "forge-std/Test.sol";
+import {Test, Vm, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {ZkStaker, Staker, IERC20, IEarningPowerCalculator} from "src/ZkStaker.sol";
+import {StakerOnBehalf} from "staker/extensions/StakerOnBehalf.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {ERC20Fake} from "staker-test/fakes/ERC20Fake.sol";
 import {ERC20VotesMock} from "staker-test/mocks/MockERC20Votes.sol";
@@ -232,6 +233,32 @@ contract ZkStakerTestBase is Test {
     returns (bool)
   {
     return _pop.a == bytes32(0) && _pop.b == bytes16(0);
+  }
+
+  function _sign(uint256 _privateKey, bytes32 _messageHash) internal pure returns (bytes memory) {
+    (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(_privateKey, _messageHash);
+    return abi.encodePacked(_r, _s, _v);
+  }
+
+  function _modifyMessage(bytes32 _message, uint256 _index) internal pure returns (bytes32) {
+    _index = bound(_index, 0, 31);
+    bytes memory _messageBytes = abi.encodePacked(_message);
+    // zero out the byte at the given index, or set it to 1 if it's already zero
+    if (_messageBytes[_index] == 0) _messageBytes[_index] = bytes1(uint8(1));
+    else _messageBytes[_index] = bytes1(uint8(0));
+    return bytes32(_messageBytes);
+  }
+
+  function _modifySignature(bytes memory _signature, uint256 _index)
+    internal
+    pure
+    returns (bytes memory)
+  {
+    _index = bound(_index, 0, _signature.length - 1);
+    // zero out the byte at the given index, or set it to 1 if it's already zero
+    if (_signature[_index] == 0) _signature[_index] = bytes1(uint8(1));
+    else _signature[_index] = bytes1(uint8(0));
+    return _signature;
   }
 }
 
@@ -533,6 +560,222 @@ contract Stake is ZkStakerTestBase {
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
     assertEq(_isEmptyBLS12_381PublicKey(_validator.latest.pubKey), true);
     assertEq(_isEmptyBLS12_381Signature(_validator.latest.proofOfPossession), true);
+  }
+}
+
+contract StakeOnBehalf is ZkStakerTestBase {
+  using stdStorage for StdStorage;
+
+  function testFuzz_CanStakeOnBehalfOfAnotherAccount(
+    uint256 _depositorPrivateKey,
+    address _sender,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    uint256 _currentNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    _depositAmount = _boundAndMintGovToken(_depositor, _depositAmount);
+
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    vm.prank(_depositor);
+    govToken.approve(address(zkStaker), _depositAmount);
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.STAKE_WITH_VALIDATOR_TYPEHASH(),
+        _depositAmount,
+        _delegatee,
+        _claimer,
+        _validator,
+        _depositor,
+        _currentNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    Staker.DepositIdentifier _depositId = zkStaker.stakeOnBehalf(
+      _depositAmount, _delegatee, _claimer, _validator, _depositor, _deadline, _signature
+    );
+
+    Staker.Deposit memory _deposit = _fetchDeposit(_depositId);
+
+    assertEq(_deposit.balance, _depositAmount);
+    assertEq(_deposit.owner, _depositor);
+    assertEq(_deposit.delegatee, _delegatee);
+    assertEq(_deposit.claimer, _claimer);
+  }
+
+  function testFuzz_RevertIf_WrongNonceIsUsed(
+    uint256 _depositorPrivateKey,
+    address _sender,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    uint256 _currentNonce,
+    uint256 _suppliedNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_currentNonce != _suppliedNonce);
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    _depositAmount = _boundAndMintGovToken(_depositor, _depositAmount);
+
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    vm.prank(_depositor);
+    govToken.approve(address(zkStaker), _depositAmount);
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.STAKE_WITH_VALIDATOR_TYPEHASH(),
+        _depositAmount,
+        _delegatee,
+        _claimer,
+        _validator,
+        _depositor,
+        _suppliedNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__InvalidSignature.selector);
+    vm.prank(_sender);
+    zkStaker.stakeOnBehalf(
+      _depositAmount, _delegatee, _claimer, _validator, _depositor, _deadline, _signature
+    );
+  }
+
+  function testFuzz_RevertIf_DeadlineExpired(
+    uint256 _depositorPrivateKey,
+    address _sender,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    uint256 _currentNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, 0, block.timestamp - 1);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    _depositAmount = _boundAndMintGovToken(_depositor, _depositAmount);
+
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    vm.prank(_depositor);
+    govToken.approve(address(zkStaker), _depositAmount);
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.STAKE_WITH_VALIDATOR_TYPEHASH(),
+        _depositAmount,
+        _delegatee,
+        _claimer,
+        _validator,
+        _depositor,
+        _currentNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__ExpiredDeadline.selector);
+    zkStaker.stakeOnBehalf(
+      _depositAmount, _delegatee, _claimer, _validator, _depositor, _deadline, _signature
+    );
+  }
+
+  function testFuzz_RevertIf_InvalidSignatureIsPassed(
+    uint256 _depositorPrivateKey,
+    address _sender,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    uint256 _currentNonce,
+    uint256 _randomSeed,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0) && _claimer != address(0));
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    _depositAmount = _boundAndMintGovToken(_depositor, _depositAmount);
+
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    vm.prank(_depositor);
+    govToken.approve(address(zkStaker), _depositAmount);
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.STAKE_TYPEHASH(),
+        _depositAmount,
+        _validator,
+        _delegatee,
+        _claimer,
+        _depositor,
+        zkStaker.nonces(_depositor),
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+
+    // Here we use `_randomSeed` as an arbitrary source of randomness to replace a legit parameter
+    // with an attack-like one.
+    if (_randomSeed % 6 == 0) {
+      _depositAmount = uint256(keccak256(abi.encode(_depositAmount)));
+    } else if (_randomSeed % 6 == 1) {
+      _delegatee = address(uint160(uint256(keccak256(abi.encode(_delegatee)))));
+    } else if (_randomSeed % 6 == 2) {
+      _depositor = address(uint160(uint256(keccak256(abi.encode(_depositor)))));
+    } else if (_randomSeed % 6 == 3) {
+      _messageHash = _modifyMessage(_messageHash, uint256(keccak256(abi.encode(_randomSeed))));
+    } else if (_randomSeed % 6 == 4) {
+      _deadline = uint256(keccak256(abi.encode(_deadline)));
+    }
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+    if (_randomSeed % 6 == 5) _signature = _modifySignature(_signature, _randomSeed);
+
+    vm.prank(_sender);
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__InvalidSignature.selector);
+    zkStaker.stakeOnBehalf(
+      _depositAmount, _delegatee, _claimer, _validator, _depositor, _deadline, _signature
+    );
   }
 }
 
@@ -899,6 +1142,27 @@ contract AlterValidator is ZkStakerTestBase {
     zkStaker.alterValidator(_depositId, _newValidator);
   }
 
+  function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
+    address _depositor,
+    uint256 _amount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    vm.assume(_validator != _newValidator);
+
+    ZkStaker.DepositIdentifier _depositId;
+    (_amount, _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
+    vm.prank(_depositor);
+    zkStaker.alterValidator(_depositId, _newValidator);
+    assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
+    assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
+  }
+
   function testFuzz_EmitsValidatorTotalWeightUpdatedEvent(
     address _depositor,
     uint256 _amount,
@@ -920,29 +1184,6 @@ contract AlterValidator is ZkStakerTestBase {
     vm.expectEmit();
     emit ZkStaker.ValidatorTotalWeightUpdated(_newValidator, _amount);
     zkStaker.alterValidator(_depositId, _newValidator);
-  }
-
-  function testFuzz_ChangesTheStakeWeightOfTheOldAndNewValidator(
-    address _depositor,
-    uint256 _amount,
-    address _delegatee,
-    address _claimer,
-    address _validator,
-    address _newValidator
-  ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
-    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
-    vm.assume(_validator != _newValidator);
-
-    ZkStaker.DepositIdentifier _depositId;
-    (_amount, _depositId) =
-      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
-    uint256 _previousValidatorStakeWeight = zkStaker.validatorStakeWeight(_validator);
-    vm.prank(_depositor);
-    zkStaker.alterValidator(_depositId, _newValidator);
-    assertEq(zkStaker.validatorStakeWeight(_validator), _previousValidatorStakeWeight - _amount);
-    assertEq(zkStaker.validatorStakeWeight(_newValidator), _amount);
   }
 
   function testFuzz_AllowsTheDepositorToReiterateTheirExistingValidator(
@@ -1253,6 +1494,198 @@ contract AlterValidator is ZkStakerTestBase {
   }
 }
 
+contract AlterValidatorOnBehalf is ZkStakerTestBase {
+  using stdStorage for StdStorage;
+
+  function testFuzz_CanAlterValidatorBehalfOfAnotherAccount(
+    uint256 _depositorPrivateKey,
+    uint256 _amount,
+    address _sender,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _currentNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    (, ZkStaker.DepositIdentifier _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.ALTER_VALIDATOR_TYPEHASH(),
+        _depositId,
+        _newValidator,
+        _depositor,
+        _currentNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    zkStaker.alterValidatorOnBehalf(_depositId, _newValidator, _depositor, _deadline, _signature);
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _newValidator);
+  }
+
+  function testFuzz_RevertIf_WrongNonceIsUsed(
+    uint256 _depositorPrivateKey,
+    uint256 _amount,
+    address _sender,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _currentNonce,
+    uint256 _suppliedNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_currentNonce != _suppliedNonce);
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    (, ZkStaker.DepositIdentifier _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.ALTER_VALIDATOR_TYPEHASH(),
+        _depositId,
+        _newValidator,
+        _depositor,
+        _suppliedNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__InvalidSignature.selector);
+    zkStaker.alterValidatorOnBehalf(_depositId, _newValidator, _depositor, _deadline, _signature);
+  }
+
+  function testFuzz_RevertIf_DeadlineExpired(
+    uint256 _depositorPrivateKey,
+    uint256 _amount,
+    address _sender,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _currentNonce,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0) && _claimer != address(0) && _sender != address(0));
+    _deadline = bound(_deadline, 0, block.timestamp - 1);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    (, ZkStaker.DepositIdentifier _depositId) =
+      _boundMintAndStake(_depositor, _amount, _delegatee, _claimer, _validator);
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.ALTER_VALIDATOR_TYPEHASH(),
+        _depositId,
+        _newValidator,
+        _depositor,
+        _currentNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__ExpiredDeadline.selector);
+    zkStaker.alterValidatorOnBehalf(_depositId, _newValidator, _depositor, _deadline, _signature);
+  }
+
+  function testFuzz_RevertIf_InvalidSignatureIsPassed(
+    uint256 _depositorPrivateKey,
+    address _sender,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _claimer,
+    address _validator,
+    address _newValidator,
+    uint256 _currentNonce,
+    uint256 _randomSeed,
+    uint256 _deadline
+  ) public {
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    (, ZkStaker.DepositIdentifier _depositId) =
+      _boundMintAndStake(_depositor, _depositAmount, _delegatee, _claimer, _validator);
+
+    stdstore.target(address(zkStaker)).sig("nonces(address)").with_key(_depositor).checked_write(
+      _currentNonce
+    );
+
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.ALTER_VALIDATOR_TYPEHASH(),
+        _depositId,
+        _newValidator,
+        _depositor,
+        _currentNonce,
+        _deadline
+      )
+    );
+
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+
+    // Here we use `_randomSeed` as an arbitrary source of randomness to replace a legit parameter
+    // with an attack-like one.
+    if (_randomSeed % 5 == 0) {
+      _newValidator = address(uint160(uint256(keccak256(abi.encode(_newValidator)))));
+    } else if (_randomSeed % 5 == 1) {
+      _depositor = address(uint160(uint256(keccak256(abi.encode(_depositor)))));
+    } else if (_randomSeed % 5 == 2) {
+      _messageHash = _modifyMessage(_messageHash, uint256(keccak256(abi.encode(_randomSeed))));
+    } else if (_randomSeed % 5 == 3) {
+      _deadline = uint256(keccak256(abi.encode(_deadline)));
+    }
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+    if (_randomSeed % 5 == 4) _signature = _modifySignature(_signature, _randomSeed);
+
+    vm.expectRevert(StakerOnBehalf.StakerOnBehalf__InvalidSignature.selector);
+    vm.prank(_sender);
+    zkStaker.alterValidatorOnBehalf(_depositId, _newValidator, _depositor, _deadline, _signature);
+  }
+}
+
 contract AlterClaimer is ZkStakerTestBase {
   function testFuzz_SetsValidatorForAtomicEarningPowerCalculation(
     address _depositor,
@@ -1286,8 +1719,7 @@ contract ClaimReward is ZkStakerTestBase {
     address _claimer,
     address _validator
   ) public {
-    vm.assume(_delegatee != address(0));
-    vm.assume(_claimer != address(0));
+    _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
 
     Staker.DepositIdentifier _depositId;
     (_amount, _depositId) =
