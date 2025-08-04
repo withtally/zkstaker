@@ -3,13 +3,52 @@ pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {Staker, ZkStaker} from "src/ZkStaker.sol";
-import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
 import {IConsensusRegistry} from
-  "lib/era-contracts/l2-contracts/contracts/interfaces/IConsensusRegistry.sol";
+  "era-contracts/l2-contracts/contracts/interfaces/IConsensusRegistry.sol";
+import {ConsensusRegistry} from "era-contracts/l2-contracts/contracts/ConsensusRegistry.sol";
 import {PercentAssertions} from "staker-test/helpers/PercentAssertions.sol";
+import {IConsensusRegistryExtended} from "src/interfaces/IConsensusRegistryExtended.sol";
+import {ZkStakerTestBase} from "test/ZkStaker.t.sol";
+
+contract IntegrationTest is ZkStakerTestBase {
+  ConsensusRegistry CONSENSUS_REGISTRY;
+
+  function setUp() public virtual override {
+    super.setUp();
+
+    // TODO: deploy mock identity earning power calculator that can be used to assert on our temp
+    // storage var
+    // calculator = new IdentityEarningPowerCalculator();
+
+    CONSENSUS_REGISTRY = new ConsensusRegistry();
+    CONSENSUS_REGISTRY.initialize(address(zkStaker));
+    vm.prank(admin);
+    zkStaker.setRegistry(IConsensusRegistryExtended(address(CONSENSUS_REGISTRY)));
+  }
+
+  function _getValidatorOnRegistry(address _validator)
+    internal
+    view
+    returns (IConsensusRegistry.ValidatorAttr memory _latest)
+  {
+    (, _latest,,,,) = CONSENSUS_REGISTRY.validators(_validator);
+  }
+
+  function _registerValidatorWithBonusWeightAboveThreshold(
+    address _validator,
+    IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
+    IConsensusRegistry.BLS12_381Signature calldata _validatorPoP,
+    uint256 _bonusWeightAboveThreshold
+  ) internal returns (uint256 boundedBonusWeightAboveThreshold) {
+    _assumeValidKeys(_validatorPubKey, _validatorPoP);
+    boundedBonusWeightAboveThreshold =
+      _boundAndSetBonusWeightAboveThreshold(_validator, _bonusWeightAboveThreshold);
+    _registerValidator(_validator, _validatorPubKey, _validatorPoP);
+  }
+}
 
 contract Stake is IntegrationTest, PercentAssertions {
-  function testFuzz_AddsValidatorToRegistryWhenValidatorWeightIsAboveThreshold(
+  function testFuzz_AddsValidatorToRegistry(
     address _depositor,
     uint256 _amount,
     address _delegatee,
@@ -24,20 +63,28 @@ contract Stake is IntegrationTest, PercentAssertions {
       _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
     _mintGovToken(_depositor, _amount);
+
+    // Register validator on ZkStaker
     _registerValidator(_validatorOwner, _validatorPubKey, _validatorPoP);
 
+    // assert that validator is not on ConsensusRegistry
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.pubKey, IConsensusRegistry.BLS12_381PublicKey(0, 0, 0));
+    assertEq(_validator.proofOfPossession, IConsensusRegistry.BLS12_381Signature(0, 0));
+
+    // Stake to validator, adding it to ConsensusRegistry
     vm.startPrank(_depositor);
     govToken.approve(address(zkStaker), _amount);
     zkStaker.stake(_amount, _delegatee, _claimer, _validatorOwner);
     vm.stopPrank();
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-
-    assertEq(_latest.pubKey, _validatorPubKey);
-    assertEq(_latest.proofOfPossession, _validatorPoP);
+    // assert that validator is on ConsensusRegistry
+    _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.pubKey, _validatorPubKey);
+    assertEq(_validator.proofOfPossession, _validatorPoP);
   }
 
-  function testFuzz_UpdatesValidatorWeightOnRegistryWhenValidatorIsAlreadyRegistered(
+  function testFuzz_UpdatesValidatorWeightOnRegistry(
     address _depositor,
     uint256 _bonusWeightAboveThreshold,
     uint256 _bonusWeightBelowThreshold,
@@ -54,6 +101,7 @@ contract Stake is IntegrationTest, PercentAssertions {
       _amount, initialValidatorWeightThreshold, zkStaker.totalStakeCap() - zkStaker.totalStaked()
     );
     _mintGovToken(_depositor, _amount);
+
     _bonusWeightAboveThreshold = _registerValidatorWithBonusWeightAboveThreshold(
       _validatorOwner, _validatorPubKey, _validatorPoP, _bonusWeightAboveThreshold
     );
@@ -65,13 +113,13 @@ contract Stake is IntegrationTest, PercentAssertions {
     zkStaker.stake(_amount, _delegatee, _claimer, _validatorOwner);
     vm.stopPrank();
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-    assertEq(_latest.weight, _bonusWeightBelowThreshold + _amount);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.weight, _bonusWeightBelowThreshold + _amount);
   }
 }
 
 contract StakeMore is IntegrationTest {
-  function testFuzz_AddsValidatorToRegistryWhenValidatorWeightIsAboveThreshold(
+  function testFuzz_AddsValidatorToRegistry(
     address _depositor,
     uint256 _amount,
     uint256 _stakeMoreAmountAboveThreshold,
@@ -100,16 +148,16 @@ contract StakeMore is IntegrationTest {
     zkStaker.stakeMore(_depositId, _stakeMoreAmountAboveThreshold);
     vm.stopPrank();
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
 
-    assertEq(_latest.pubKey, _validatorPubKey);
-    assertEq(_latest.proofOfPossession, _validatorPoP);
-    assertEq(_latest.weight, _amount + _stakeMoreAmountAboveThreshold);
+    assertEq(_validator.pubKey, _validatorPubKey);
+    assertEq(_validator.proofOfPossession, _validatorPoP);
+    assertEq(_validator.weight, _amount + _stakeMoreAmountAboveThreshold);
   }
 }
 
 contract Withdraw is IntegrationTest {
-  function testFuzz_UpdatesValidatorWeightOnRegistryWhenValidatorIsAlreadyRegistered(
+  function testFuzz_UpdatesValidatorWeightOnRegistry(
     address _depositor,
     uint256 _stakeAmount,
     uint256 _withdrawAmount,
@@ -136,11 +184,11 @@ contract Withdraw is IntegrationTest {
     vm.prank(_depositor);
     zkStaker.withdraw(_depositId, _withdrawAmount);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-    assertEq(_latest.weight, _stakeAmount - _withdrawAmount);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.weight, _stakeAmount - _withdrawAmount);
   }
 
-  function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(
+  function testFuzz_RemovesValidatorFromRegistry(
     address _depositor,
     uint256 _stakeAmount,
     uint256 _withdrawAmount,
@@ -168,8 +216,8 @@ contract Withdraw is IntegrationTest {
     vm.prank(_depositor);
     zkStaker.withdraw(_depositId, _withdrawAmount);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-    assertEq(_latest.removed, true);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.removed, true);
   }
 
   function testFuzz_DoesNotAddValidatorToRegistryWhenValidatorWeightIsBelowThreshold(
@@ -198,16 +246,16 @@ contract Withdraw is IntegrationTest {
     zkStaker.stakeMore(_depositId, _stakeMoreAmountAboveThreshold);
     vm.stopPrank();
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _latest.pubKey;
-    IConsensusRegistry.BLS12_381Signature memory _pop = _latest.proofOfPossession;
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    IConsensusRegistry.BLS12_381PublicKey memory _pubKey = _validator.pubKey;
+    IConsensusRegistry.BLS12_381Signature memory _pop = _validator.proofOfPossession;
     assertEq(_isEmptyBLS12_381PublicKey(_pubKey), true);
     assertEq(_isEmptyBLS12_381Signature(_pop), true);
   }
 }
 
 contract AlterValidator is IntegrationTest {
-  function testFuzz_AddsValidatorToRegistryWhenValidatorIsNotRegisteredAndAboveThreshold(
+  function testFuzz_AddsValidatorToRegistry(
     address _depositor,
     uint256 _stakeAmountAboveThreshold,
     address _delegatee,
@@ -231,13 +279,12 @@ contract AlterValidator is IntegrationTest {
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _validator);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validator);
-    assertEq(_latest.weight, _stakeAmountAboveThreshold);
+    IConsensusRegistry.ValidatorAttr memory _validatorOnRegistry =
+      _getValidatorOnRegistry(_validator);
+    assertEq(_validatorOnRegistry.weight, _stakeAmountAboveThreshold);
   }
 
-  // TODO: this will revert with ZeroValidatorWeight. Given our current design, a depositor cannot
-  // alter validator if the validator have no bonus weight or other depositors.
-  function testFuzz_ChangesValidatorWeightOnRegistryWhenValidatorIsAlreadyRegistered(
+  function testFuzz_ChangesValidatorWeightOnRegistry(
     address _depositor,
     uint256 _amount,
     uint256 _bonusWeightAboveThreshold,
@@ -250,7 +297,6 @@ contract AlterValidator is IntegrationTest {
     IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
-    vm.skip(true);
     _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
     _amount = bound(
@@ -267,18 +313,14 @@ contract AlterValidator is IntegrationTest {
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
 
-    IConsensusRegistry.ValidatorAttr memory _previousValidatorLatest =
-      _getValidatorLatestAttributes(_validator);
-    IConsensusRegistry.ValidatorAttr memory _currentValidatorLatest =
-      _getValidatorLatestAttributes(_newValidator);
-    assertEq(_previousValidatorLatest.weight, 0);
-    assertEq(_currentValidatorLatest.weight, _amount + _bonusWeightAboveThreshold);
+    IConsensusRegistry.ValidatorAttr memory _previousValidator = _getValidatorOnRegistry(_validator);
+    IConsensusRegistry.ValidatorAttr memory _currentValidator =
+      _getValidatorOnRegistry(_newValidator);
+    assertValidatorRemovedOrWeightIfAboveThreshold(_previousValidator, 0);
+    assertEq(_currentValidator.weight, _amount + _bonusWeightAboveThreshold);
   }
 
-  // TODO: Likewise, there may be cases where a single depositor is the sole contributor to a
-  // validator, but the validator cannot be removed with alterValidator, because that will cause
-  // revert with ZeroValidatorWeight.
-  function testFuzz_RemovesValidatorFromRegistryWhenValidatorRegisteredButBelowThreshold(
+  function testFuzz_RemovesValidatorFromRegistry(
     address _depositor,
     uint256 _amount,
     uint256 _bonusWeightAboveThreshold,
@@ -291,7 +333,6 @@ contract AlterValidator is IntegrationTest {
     IConsensusRegistry.BLS12_381PublicKey calldata _newValidatorPubKey,
     IConsensusRegistry.BLS12_381Signature calldata _newValidatorPoP
   ) public {
-    vm.skip(true);
     _assumeValidDelegateeAndClaimer(_delegatee, _claimer);
     vm.assume(_validator != _newValidator);
     _amount = bound(
@@ -308,13 +349,14 @@ contract AlterValidator is IntegrationTest {
     vm.prank(_depositor);
     zkStaker.alterValidator(_depositId, _newValidator);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validator);
-    assertEq(_latest.removed, true);
+    IConsensusRegistry.ValidatorAttr memory _validatorOnRegistry =
+      _getValidatorOnRegistry(_validator);
+    assertEq(_validatorOnRegistry.removed, true);
   }
 }
 
 contract SetBonusWeight is IntegrationTest {
-  function testFuzz_AddsValidatorToRegistryWhenBonusWeightIsAboveThreshold(
+  function testFuzz_AddsValidatorToRegistry(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -325,13 +367,13 @@ contract SetBonusWeight is IntegrationTest {
     _bonusWeightAboveThreshold =
       _boundAndSetBonusWeightAboveThreshold(_validatorOwner, _bonusWeightAboveThreshold);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
-    assertEq(_latest.weight, _bonusWeightAboveThreshold);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
+    assertEq(_validator.weight, _bonusWeightAboveThreshold);
   }
 }
 
 contract ChangeValidatorKey is IntegrationTest {
-  function testFuzz_RegistersValidatorAsOwnerOnTheRegistryWhenAboveThreshold(
+  function testFuzz_AddsValidatorAsOwnerOnTheRegistry(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -344,13 +386,13 @@ contract ChangeValidatorKey is IntegrationTest {
     vm.prank(_validatorOwner);
     zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
 
-    assertEq(_latest.pubKey, _validatorPubKey);
-    assertEq(_latest.proofOfPossession, _validatorPoP);
+    assertEq(_validator.pubKey, _validatorPubKey);
+    assertEq(_validator.proofOfPossession, _validatorPoP);
   }
 
-  function testFuzz_RegistersValidatorAsValidatorStakeAuthorityOnTheRegistryWhenAboveThreshold(
+  function testFuzz_AddsValidatorAsValidatorStakeAuthorityOnTheRegistry(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -363,13 +405,13 @@ contract ChangeValidatorKey is IntegrationTest {
     vm.prank(validatorStakeAuthority);
     zkStaker.changeValidatorKey(_validatorOwner, _validatorPubKey, _validatorPoP);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
 
-    assertEq(_latest.pubKey, _validatorPubKey);
-    assertEq(_latest.proofOfPossession, _validatorPoP);
+    assertEq(_validator.pubKey, _validatorPubKey);
+    assertEq(_validator.proofOfPossession, _validatorPoP);
   }
 
-  function testFuzz_ChangesValidatorKeysAsOwnerOnTheRegistryWhenAboveThreshold(
+  function testFuzz_ChangesValidatorKeysAsOwnerOnTheRegistry(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -387,13 +429,13 @@ contract ChangeValidatorKey is IntegrationTest {
     vm.prank(_validatorOwner);
     zkStaker.changeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
 
-    assertEq(_latest.pubKey, _newValidatorPubKey);
-    assertEq(_latest.proofOfPossession, _newValidatorPoP);
+    assertEq(_validator.pubKey, _newValidatorPubKey);
+    assertEq(_validator.proofOfPossession, _newValidatorPoP);
   }
 
-  function testFuzz_ChangesValidatorKeysAsStakeAuthorityOnTheRegistryWhenAboveThreshold(
+  function testFuzz_ChangesValidatorKeysAsStakeAuthorityOnTheRegistry(
     address _validatorOwner,
     uint256 _bonusWeightAboveThreshold,
     IConsensusRegistry.BLS12_381PublicKey calldata _validatorPubKey,
@@ -415,10 +457,10 @@ contract ChangeValidatorKey is IntegrationTest {
     vm.prank(validatorStakeAuthority);
     zkStaker.changeValidatorKey(_validatorOwner, _newValidatorPubKey, _newValidatorPoP);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validatorOwner);
+    IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
 
-    assertEq(_latest.pubKey, _newValidatorPubKey);
-    assertEq(_latest.proofOfPossession, _newValidatorPoP);
+    assertEq(_validator.pubKey, _newValidatorPubKey);
+    assertEq(_validator.proofOfPossession, _newValidatorPoP);
   }
 }
 
@@ -438,20 +480,9 @@ contract ChangeValidatorLeader is IntegrationTest {
     vm.prank(validatorStakeAuthority);
     zkStaker.changeValidatorLeader(_validator, true);
 
-    IConsensusRegistry.ValidatorAttr memory _latest = _getValidatorLatestAttributes(_validator);
-    assertEq(_latest.leader, true);
-  }
-
-  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, address _validator) public {
-    vm.assume(_caller != validatorStakeAuthority);
-
-    vm.prank(_caller);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
-      )
-    );
-    zkStaker.changeValidatorLeader(_validator, true);
+    IConsensusRegistry.ValidatorAttr memory _validatorOnRegistry =
+      _getValidatorOnRegistry(_validator);
+    assertEq(_validatorOnRegistry.leader, true);
   }
 }
 
@@ -462,44 +493,16 @@ contract SetCommitteeActivationDelay is IntegrationTest {
 
     assertEq(CONSENSUS_REGISTRY.committeeActivationDelay(), _delay);
   }
-
-  function testFuzz_RevertIf_NotValidatorStakeAuthority(address _caller, uint256 _delay) public {
-    vm.assume(_caller != validatorStakeAuthority);
-
-    vm.prank(_caller);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
-      )
-    );
-    zkStaker.setCommitteeActivationDelay(_delay);
-  }
 }
 
 contract UpdateLeaderSelection is IntegrationTest {
   function testFuzz_UpdatesLeaderSelection(uint64 _frequency, bool _weighted) public {
     vm.prank(validatorStakeAuthority);
     zkStaker.updateLeaderSelection(_frequency, _weighted);
-    (IConsensusRegistry.LeaderSelectionAttr memory _latest,,,,) =
+    (IConsensusRegistry.LeaderSelectionAttr memory _validator,,,,) =
       CONSENSUS_REGISTRY.leaderSelection();
 
-    assertEq(_latest.frequency, _frequency);
-    assertEq(_latest.weighted, _weighted);
-  }
-
-  function testFuzz_RevertIf_NotValidatorStakeAuthority(
-    address _caller,
-    uint64 _frequency,
-    bool _weighted
-  ) public {
-    vm.assume(_caller != validatorStakeAuthority);
-
-    vm.prank(_caller);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        Staker.Staker__Unauthorized.selector, bytes32("not validator stake authority"), _caller
-      )
-    );
-    zkStaker.updateLeaderSelection(_frequency, _weighted);
+    assertEq(_validator.frequency, _frequency);
+    assertEq(_validator.weighted, _weighted);
   }
 }

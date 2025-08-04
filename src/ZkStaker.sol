@@ -578,8 +578,10 @@ contract ZkStaker is
     }
 
     if (_isInRegistry) {
+      // We don't need to update the weight on the registry if the validator is below the threshold,
+      // as it will be removed. When it's re-added, its weight will get overwritten.
+      if (!_isAboveThreshold) return registry.remove(_validatorOwner);
       registry.changeValidatorWeight(_validatorOwner, _newWeight);
-      if (!_isAboveThreshold) registry.remove(_validatorOwner);
     }
   }
 
