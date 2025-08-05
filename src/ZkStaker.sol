@@ -15,11 +15,6 @@ import {
 } from "src/interfaces/IConsensusRegistryExtended.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-// these imports needed to get hardhat to include the contracts into the zk-artifacts so the
-// deploy script could find them
-import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarningPowerCalculator.sol";
-import {MintRewardNotifier} from "staker/notifiers/MintRewardNotifier.sol";
-
 /// @title ZkStaker
 /// @author [ScopeLift](https://scopelift.co)
 /// @notice A staking contract for ZK Nation that extends the Staker contract from
