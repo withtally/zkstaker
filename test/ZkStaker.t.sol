@@ -522,7 +522,9 @@ contract Stake is ZkStakerTestBase {
     vm.stopPrank();
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    assertValidatorRemovedOrWeightIfAboveThreshold(_validator.latest, _bonusWeightBelowThreshold);
+    assertValidatorRemovedOrWeightIfAboveThreshold(
+      _validator.latest, _bonusWeightBelowThreshold + _amount
+    );
   }
 
   function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSet(
@@ -910,7 +912,9 @@ contract StakeMore is ZkStakerTestBase {
     vm.stopPrank();
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    assertEq(_validator.latest.weight, _stakeMoreAmountAboveThreshold + _amount);
+    assertValidatorRemovedOrWeightIfAboveThreshold(
+      _validator.latest, _stakeMoreAmountAboveThreshold + _amount
+    );
   }
 
   function testFuzz_DoesNotAddValidatorToRegistryWhenValidatorWeightIsBelowThreshold(
@@ -1048,7 +1052,9 @@ contract Withdraw is ZkStakerTestBase {
     zkStaker.withdraw(_depositId, _withdrawAmount);
 
     IConsensusRegistry.Validator memory _validator = zkStaker.registry().validators(_validatorOwner);
-    assertEq(_validator.latest.weight, _stakeAmount - _withdrawAmount);
+    assertValidatorRemovedOrWeightIfAboveThreshold(
+      _validator.latest, _stakeAmount - _withdrawAmount
+    );
   }
 
   function testFuzz_RemovesValidatorFromRegistryWhenValidatorIsAlreadyRegisteredButBelowThreshold(

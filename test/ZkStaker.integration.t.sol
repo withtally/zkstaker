@@ -185,7 +185,7 @@ contract Withdraw is IntegrationTest {
     zkStaker.withdraw(_depositId, _withdrawAmount);
 
     IConsensusRegistry.ValidatorAttr memory _validator = _getValidatorOnRegistry(_validatorOwner);
-    assertEq(_validator.weight, _stakeAmount - _withdrawAmount);
+    assertValidatorRemovedOrWeightIfAboveThreshold(_validator, _stakeAmount - _withdrawAmount);
   }
 
   function testFuzz_RemovesValidatorFromRegistry(
