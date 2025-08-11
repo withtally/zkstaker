@@ -4,7 +4,7 @@
 pragma solidity ^0.8.20;
 
 import {IConsensusRegistry} from
-  "lib/era-contracts/l2-contracts/contracts/interfaces/IConsensusRegistry.sol";
+  "era-contracts/l2-contracts/contracts/interfaces/IConsensusRegistry.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev

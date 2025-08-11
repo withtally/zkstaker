@@ -2,11 +2,15 @@
 
 ZkStaker is built of of Tally's [Staker](https://github.com/withtally/staker) library, and incentivizes delegation within ZK Nation. The current system allows a ZK holder to stake their tokens and earn rewards in ZK tokens. Rewards are currently distributed via minting on a capped minter. In the future other reward sources can be added through a governance vote.
 
-- [Overview](#overview)
-- [Setup](#setup)
-- [Development](#development)
-- [Deployment](#deployment)
-- [License](#license)
+- [ZkStaker](#zkstaker)
+  - [Overview](#overview)
+  - [Setup](#setup)
+  - [Development](#development)
+  - [Deployment](#deployment)
+    - [Environment Variables](#environment-variables)
+    - [Script Constants](#script-constants)
+    - [Deployment Execution](#deployment-execution)
+  - [License](#license)
 
 ## Overview
 
@@ -157,10 +161,11 @@ For a local deployment, use `zkSyncLocal` as the network-name:
 npx hardhat run script/DeployZkStaker.ts --network zkSyncLocal
 ```
 
-For a testnet deployment, use `zkSyncEraTestnet` as the network-name:
+For a testnet deployment, use `zkSyncTestnet` as the network-name:
 
 ```bash
-npx hardhat run script/DeployZkStaker.ts --network zkSyncEraTestnet
+npx hardhat run script/DeployZkStaker.sepolia.ts --network zkSyncTestnet
+npx hardhat run script/DeployConsensusRegistry.sepolia.ts --network zkSyncTestnet
 ```
 
 For a mainnet deployment, use `zkSyncEra` as the network-name
