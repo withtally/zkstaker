@@ -1727,6 +1727,72 @@ contract AlterClaimer is ZkStakerTestBase {
   }
 }
 
+contract AlterDelegatee is ZkStakerTestBase {
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSetWhenAlteringDelegatee(
+    address _depositor,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _newDelegatee,
+    address _claimer,
+    address _validator
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_newDelegatee != address(0));
+    vm.assume(_claimer != address(0));
+
+    Staker.DepositIdentifier _depositId;
+    (_depositAmount, _depositId) =
+      _boundMintAndStake(_depositor, _depositAmount, _delegatee, _claimer, _validator);
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    vm.prank(_depositor);
+    zkStaker.alterDelegatee(_depositId, _newDelegatee);
+  }
+}
+
+contract AlterDelegateeOnBehalf is ZkStakerTestBase {
+  function testFuzz_ValidatorForAtomicEarningPowerCalculationIsSetWhenAlteringDelegateeOnBehalf(
+    uint256 _depositorPrivateKey,
+    uint256 _depositAmount,
+    address _delegatee,
+    address _newDelegatee,
+    address _claimer,
+    address _validator,
+    address _sender,
+    uint256 _deadline
+  ) public {
+    vm.assume(_delegatee != address(0));
+    vm.assume(_newDelegatee != address(0));
+    vm.assume(_claimer != address(0));
+    vm.assume(_sender != address(0));
+    _depositorPrivateKey = bound(_depositorPrivateKey, 1, 100e18);
+    address _depositor = vm.addr(_depositorPrivateKey);
+    _deadline = bound(_deadline, block.timestamp, type(uint256).max);
+
+    Staker.DepositIdentifier _depositId;
+    (_depositAmount, _depositId) =
+      _boundMintAndStake(_depositor, _depositAmount, _delegatee, _claimer, _validator);
+    earningPowerCalculator.__setZkStakerAndTestValidatorExpectedForAtomicEarningPowerCalculation(
+      zkStaker, _validator
+    );
+
+    assertEq(zkStaker.validatorForDeposit(_depositId), _validator);
+    bytes32 _message = keccak256(
+      abi.encode(
+        zkStaker.ALTER_DELEGATEE_TYPEHASH(), _depositId, _newDelegatee, _depositor, 0, _deadline
+      )
+    );
+    bytes32 _messageHash =
+      keccak256(abi.encodePacked("\x19\x01", zkStaker.DOMAIN_SEPARATOR(), _message));
+    bytes memory _signature = _sign(_depositorPrivateKey, _messageHash);
+
+    vm.prank(_sender);
+    zkStaker.alterDelegateeOnBehalf(_depositId, _newDelegatee, _depositor, _deadline, _signature);
+  }
+}
+
 contract ClaimReward is ZkStakerTestBase {
   function testFuzz_DepositorReceivesRewardsWhenClaiming(
     address _depositor,

@@ -620,6 +620,22 @@ contract ZkStaker is
   /// @inheritdoc Staker
   /// @dev We override this function to atomically store the validator for atomic earning power
   /// calculation.
+  function _alterDelegatee(
+    Deposit storage deposit,
+    DepositIdentifier _depositId,
+    address _newDelegatee
+  ) internal virtual override(Staker) {
+    address _depositValidator = validatorForDeposit[_depositId];
+    validatorForAtomicEarningPowerCalculation = _depositValidator;
+
+    Staker._alterDelegatee(deposit, _depositId, _newDelegatee);
+
+    validatorForAtomicEarningPowerCalculation = address(0);
+  }
+
+  /// @inheritdoc Staker
+  /// @dev We override this function to atomically store the validator for atomic earning power
+  /// calculation.
   function _claimReward(DepositIdentifier _depositId, Deposit storage deposit, address _claimer)
     internal
     virtual
