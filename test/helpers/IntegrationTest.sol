@@ -17,8 +17,7 @@ contract IntegrationTest is Test {
   uint256 constant SCALE_FACTOR = 1e36;
 
   function setUp() public virtual {
-    (string memory rpcUrl, uint256 forkBlock) = _getForkConfig();
-    vm.createSelectFork(rpcUrl, forkBlock);
+    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662));
 
     calculator = new IdentityEarningPowerCalculator();
     ZkStaker implementation = new ZkStaker();
@@ -82,24 +81,5 @@ contract IntegrationTest is Test {
 
   function _boundEligibilityScore(uint256 _score) internal pure returns (uint256) {
     return bound(_score, 50, 100);
-  }
-
-  /// @notice Internal function to get fork configuration with default values
-  /// @return rpcUrl The RPC URL to use for forking
-  /// @return forkBlock The block number to fork from
-  function _getForkConfig() internal view returns (string memory rpcUrl, uint256 forkBlock) {
-    // Get RPC URL with default fallback
-    try vm.envString("RPC_URL") returns (string memory envRpcUrl) {
-      rpcUrl = envRpcUrl;
-    } catch {
-      rpcUrl = "https://sepolia.era.zksync.dev/";
-    }
-
-    // Get fork block with default fallback
-    try vm.envUint("FORK_BLOCK") returns (uint256 envForkBlock) {
-      forkBlock = envForkBlock;
-    } catch {
-      forkBlock = 5_573_532;
-    }
   }
 }
