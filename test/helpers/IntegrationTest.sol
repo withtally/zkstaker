@@ -17,7 +17,7 @@ contract IntegrationTest is Test {
   uint256 constant SCALE_FACTOR = 1e36;
 
   function setUp() public virtual {
-    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662));
+    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
 
     calculator = new IdentityEarningPowerCalculator();
     ZkStaker implementation = new ZkStaker();
@@ -37,7 +37,7 @@ contract IntegrationTest is Test {
         )
       )
     );
-	zkStaker = ZkStaker(address(proxy));
+    zkStaker = ZkStaker(address(proxy));
   }
 
   function _dealStakingToken(address _recipient, uint96 _amount) internal returns (uint96) {
