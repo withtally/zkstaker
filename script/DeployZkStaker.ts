@@ -50,8 +50,15 @@ async function main() {
   // Deploy ZkStaker contract using create
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
-  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, earningPowerCalculaterContractAddress, MAX_BUMP_TIP, INITIAL_TOTAL_STAKE_CAP, zkWallet.address, STAKER_NAME];
-  const zkStaker = await deployer.deploy(zkStakerContractArtifact, constructorArgs, "create", undefined);
+  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS,  0, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculaterContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
+	const zkStaker = await hre.zkUpgrades.deployProxy(
+    deployer.zkWallet,
+    zkStakerContractArtifact,
+    constructorArgs,
+    {
+      initializer: "initialize",
+			unsafeAllow: ["constructor"]
+    });
   await zkStaker.deploymentTransaction()?.wait();
   const zkStakerContractAddress = await zkStaker.getAddress();
   console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
