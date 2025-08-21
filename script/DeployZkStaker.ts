@@ -22,6 +22,7 @@ const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
 const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
 const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
 const MAX_BUMP_TIP = 0;
+const MAX_CLAIM_FEE = 1000000000000000000n;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODO: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
 
@@ -50,7 +51,7 @@ async function main() {
   // Deploy ZkStaker contract using create
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
-  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS,  0, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculaterContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
+  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculaterContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
 	const zkStaker = await hre.zkUpgrades.deployProxy(
     deployer.zkWallet,
     zkStakerContractArtifact,
