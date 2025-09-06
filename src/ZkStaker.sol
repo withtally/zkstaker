@@ -36,6 +36,15 @@ contract ZkStaker is
     _disableInitializers();
   }
 
+  /// @notice Initializes the ZkStaker contract with required parameters.
+  /// @param _rewardsToken ERC20 token in which rewards will be denominated.
+  /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
+  /// @param _maxClaimFee The maximum fee to charge when claiming.
+  /// @param _admin Address which will have permission to manage reward notifiers.
+  /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power.
+  /// @param _earningPowerCalculator The contract that will calculate earning power for stakers.
+  /// @param _name Name used in the EIP712 domain separator for permit functionality.
+  /// @param _initialTotalStakeCap The initial maximum total stake allowed.
   function initialize(
     IERC20 _rewardToken,
     IERC20 _stakeToken,

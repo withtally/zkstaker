@@ -6,7 +6,6 @@ import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 import {IntegrationTest} from "test/helpers/IntegrationTest.sol";
 import {PercentAssertions} from "staker-test/helpers/PercentAssertions.sol";
 
-/// TODO: Throwing lots of annoying errors
 contract Stake is IntegrationTest, PercentAssertions {
   function testForkFuzz_CorrectlyStakeAndEarnRewardsAfterDuration(
     address _depositor,

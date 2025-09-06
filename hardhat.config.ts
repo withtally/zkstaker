@@ -35,7 +35,7 @@ const config: HardhatUserConfig = {
     zkSyncLocal: {
       zksync: true,
       ethNetwork: "ethNetwork",
-      url: "http://0.0.0.0:8011",
+      url: process.env.ZKSYNC_RPC_URL ? process.env.ZKSYNC_RPC_URL : "http://",
     },
     zkSyncEra: {
       zksync: true,
