@@ -43,13 +43,13 @@ async function main() {
   const earningPowerCalculatorContractArtifact = await deployer.loadArtifact(earningPowerCalculatorName);
   const earningPowerCalculator = await deployer.deploy(earningPowerCalculatorContractArtifact, [], "create", undefined);
   await earningPowerCalculator.deploymentTransaction()?.wait();
-  const earningPowerCalculaterContractAddress = await earningPowerCalculator.getAddress();
-  console.log(`${earningPowerCalculatorName} was deployed to ${earningPowerCalculaterContractAddress}`);
+  const earningPowerCalculatorContractAddress = await earningPowerCalculator.getAddress();
+  console.log(`${earningPowerCalculatorName} was deployed to ${earningPowerCalculatorContractAddress}`);
 
   // Deploy ZkStaker contract using create
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
-  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculaterContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
+  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculatorContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
   const zkStaker = await hre.zkUpgrades.deployProxy(
     deployer.zkWallet,
     zkStakerContractArtifact,
@@ -77,7 +77,7 @@ async function main() {
   await zkStaker.setAdmin(ZK_GOV_OPS_TIMELOCK);
 
   // Output the contract addresses to be captured by the calling script
-  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculaterContractAddress}\nMINT_REWARD_NOTIFIER_ADDRESS=${mintRewardNotifierContractAddress}\n`);
+  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculatorContractAddress}\nMINT_REWARD_NOTIFIER_ADDRESS=${mintRewardNotifierContractAddress}\n`);
 }
 
 main().catch((error) => {

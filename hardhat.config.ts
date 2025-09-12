@@ -32,16 +32,15 @@ const config: HardhatUserConfig = {
       zksync: false,
       url: "http://localhost:8545",
     },
-    zkSyncLocal: {
+		zkSyncLocal: {
       zksync: true,
       ethNetwork: "ethNetwork",
-      url: process.env.ZKSYNC_RPC_URL ? process.env.ZKSYNC_RPC_URL : "http://",
+      url: "http://0.0.0.0:8011",
     },
     zkSyncEra: {
       zksync: true,
       ethNetwork: "mainnet",
-      // this should fail at runtime if the env variable is not set
-      url: process.env.ZKSYNC_RPC_URL ? process.env.ZKSYNC_RPC_URL : "http://",
+      url: process.env.ZKSYNC_MAINNET_RPC_URL || "https://mainnet.era.zksync.io",
     },
     zkSyncTestnet: {
       zksync: true,
