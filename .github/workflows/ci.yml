@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "MY_CERT=${{ secrets.DEPLOYER_PRIVATE_KEY }}"
+            echo "DEPLOYER_PRIVATE_KEY=${{ secrets.DEPLOYER_PRIVATE_KEY }}"
           } >> "$GITHUB_ENV"
 
       - name: Install the dependencies
