@@ -65,7 +65,7 @@ describe("DeployZkStaker", function () {
     // Get the deployed contract instances
     const ZkStaker = await ethers.getContractFactory("ZkStaker");
     const MintRewardNotifier = await ethers.getContractFactory("MintRewardNotifier");
-    const IdentityEarningPowerCalculator = await ethers.getContractFactory("IdentityEarningPowerCalculator");
+    const IdentityEarningPowerCalculator = await ethers.getContractFactory("BinaryEligibilityOracleEarningPowerCalculator");
     zkStaker = ZkStaker.attach(zkStakerContractAddress ) as Contract;
     mintRewardNotifier = MintRewardNotifier.attach(mintRewardNotifierAddress) as Contract;
     identityEarningPowerCalculator = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;

@@ -9,7 +9,7 @@ import * as hre from "hardhat";
 // produced by running the scripts.
 
 // EarningPowerCalculator deployment constructor arguments
-const EARNING_POWER_CALCULATOR_NAME = "IdentityEarningPowerCalculator";
+const EARNING_POWER_CALCULATOR_NAME = "BinaryEligibilityOracleEarningPowerCalculator";
 
 // Notifier deployment constructor arguments
 const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
@@ -25,6 +25,14 @@ const MAX_BUMP_TIP = 0;
 const MAX_CLAIM_FEE = 1000000000000000000n;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODO: Verify this value (placeholder for now)
 const STAKER_NAME = "ZkStaker";
+
+// BinaryEligibilityOracle Params
+const EARNING_POWER_OWNER = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
+const SCORE_ORACLE = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
+const STALE_ORACLE_WINDOW =  7 * NUMBER_OF_SECONDS_IN_A_DAY;
+const ORACLE_PAUSE_GUARDIAN = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
+const DELEGATEE_SCORE_ELIGIBILITY_THRESHOLD = 100;
+const UPDATE_ELIGIBILITY_DELAY = 7 * NUMBER_OF_SECONDS_IN_A_DAY;
 
 
 async function main() {
@@ -43,7 +51,7 @@ async function main() {
   const earningPowerCalculatorName = EARNING_POWER_CALCULATOR_NAME;
   console.log("Deploying " + earningPowerCalculatorName + "...");
   const earningPowerCalculatorContractArtifact = await deployer.loadArtifact(earningPowerCalculatorName);
-  const earningPowerCalculator = await deployer.deploy(earningPowerCalculatorContractArtifact, [], "create", undefined);
+  const earningPowerCalculator = await deployer.deploy(earningPowerCalculatorContractArtifact, [EARNING_POWER_OWNER, SCORE_ORACLE, STALE_ORACLE_WINDOW, ORACLE_PAUSE_GUARDIAN,  DELEGATEE_SCORE_ELIGIBILITY_THRESHOLD, UPDATE_ELIGIBILITY_DELAY], "create", undefined);
   await earningPowerCalculator.deploymentTransaction()?.wait();
   const earningPowerCalculatorContractAddress = await earningPowerCalculator.getAddress();
   console.log(`${earningPowerCalculatorName} was deployed to ${earningPowerCalculatorContractAddress}`);
