@@ -35,7 +35,7 @@ describe("DeployZkStaker", function () {
     console.log("About to run deploy script...");
     // Run the deploy script
     try {
-      const output = execSync("npm run script DeployZkStaker.ts", { encoding: "utf-8" });
+      const output = execSync("npm run script DeployZkStaker.ts zkSyncLocal", { encoding: "utf-8" });
       console.log("Deploy script output:", output);
       const zkStakerMatch = output.match(/ZKSTAKER_ADDRESS=(0x[a-fA-F0-9]{40})\n/);
       const earningPowerCalculatorMatch = output.match(/EARNING_POWER_CALCULATOR_ADDRESS=(0x[a-fA-F0-9]{40})\n/);

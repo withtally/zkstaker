@@ -16,23 +16,21 @@ const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
 const REWARD_AMOUNT = "1000000000000000000"; // TODO: Verify this value (placeholder for now)
 const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 
-
 // ZkStaker deployment constructor arguments
-const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
-const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
-const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
+const ZK_TOKEN_ADDRESS = "0xbEBA6afE9851C504e49c7d92BB605003D4cA79Bf";
+const ZK_GOV_OPS_TIMELOCK = "0xDCEE8CAb04Dd58708F7a4d3e8FAE653291f7abeA"
+const ZK_CAPPED_MINTER = "0x0066b1DC845874a568B94C592091Ed7e77275A41"; //TODO: Verify this value (placeholder for now)
 const MAX_BUMP_TIP = 0;
-const MAX_CLAIM_FEE = 1000000000000000000n;
 const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODO: Verify this value (placeholder for now)
+const MAX_CLAIM_FEE = 1000000000000000000n;
 const STAKER_NAME = "ZkStaker";
-
 
 async function main() {
   dotEnvConfig();
 
   // TODO: Uncomment this line referencing the environment variable when secret can be set on CI
+  // const deployerPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
   const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
-  // const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
   if (!deployerPrivateKey) {
     throw "Please set DEPLOYER_PRIVATE_KEY in your .env file";
   }
@@ -52,13 +50,13 @@ async function main() {
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
   const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculatorContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
-	const zkStaker = await hre.zkUpgrades.deployProxy(
+  const zkStaker = await hre.zkUpgrades.deployProxy(
     deployer.zkWallet,
     zkStakerContractArtifact,
     constructorArgs,
     {
       initializer: "initialize",
-			unsafeAllow: ["constructor"]
+      unsafeAllow: ["constructor"]
     });
   await zkStaker.deploymentTransaction()?.wait();
   const zkStakerContractAddress = await zkStaker.getAddress();
