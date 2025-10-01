@@ -9,7 +9,7 @@ dotenv.config();
 describe("DeployZkStaker", function () {
   let zkStaker: Contract;
   let mintRewardNotifier: Contract;
-  let identityEarningPowerCalculator: Contract;
+  let earningPowerCalculator: Contract;
   let localNodeProcess: any;
   let zkStakerContractAddress  = ""
   let earningPowerCalculatorAddress = "";
@@ -68,7 +68,7 @@ describe("DeployZkStaker", function () {
     const IdentityEarningPowerCalculator = await ethers.getContractFactory("BinaryEligibilityOracleEarningPowerCalculator");
     zkStaker = ZkStaker.attach(zkStakerContractAddress ) as Contract;
     mintRewardNotifier = MintRewardNotifier.attach(mintRewardNotifierAddress) as Contract;
-    identityEarningPowerCalculator = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
+    earningPowerCalculator  = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
   });
 
   after(async function () {
