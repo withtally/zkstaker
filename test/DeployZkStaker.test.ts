@@ -85,17 +85,17 @@ describe("DeployZkStaker", function () {
   });
 
   it("should have the correct constructor arguments", async function () {
-		const raw = await hre.zk.provider.getStorageAt(zkStakerContractAddress, "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103");
-		const proxyAdminAddress = ethers.getAddress("0x" + raw.slice(26));
-		const ProxyAdminContract = await hre.zk.getContractAt("ProxyAdmin", proxyAdminAddress);
+    const raw = await hre.zk.provider.getStorageAt(zkStakerContractAddress, "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103");
+    const proxyAdminAddress = ethers.getAddress("0x" + raw.slice(26));
+    const ProxyAdminContract = await hre.zk.getContractAt("ProxyAdmin", proxyAdminAddress);
 
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 500n * (10n ** 18n);
     const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 400_000_000n * (10n ** 18n);
     const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
-		const PROXY_ADMIN_OWNER = await ProxyAdminContract.owner();
-		const TOKEN_GOVERNOR_TIMELOCK = "0xe5d21A9179CA2E1F0F327d598D464CcF60d89c3d";
+    const PROXY_ADMIN_OWNER = await ProxyAdminContract.owner();
+    const TOKEN_GOVERNOR_TIMELOCK = "0xe5d21A9179CA2E1F0F327d598D464CcF60d89c3d";
 
 
     expect(await zkStaker.REWARD_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
