@@ -88,7 +88,7 @@ describe("DeployZkStaker", function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
     const MAX_BUMP_TIP = 0;
-    const INITIAL_TOTAL_STAKE_CAP = 400_000_000n * (10n ** 18n); // 1e24 string instead of bigNumber
+    const INITIAL_TOTAL_STAKE_CAP = 400_000_000n * (10n ** 18n);
     const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
     const PROXY_ADMIN = await zkStaker.getAdmin() as Contract;
 		const PROXY_ADMIN_OWNER = await PROXY_ADMIN.owner().to.properAddress;
