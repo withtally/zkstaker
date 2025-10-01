@@ -18,20 +18,22 @@ const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
 
 
 // ZkStaker deployment constructor arguments
-const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
-const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
-const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
-const MAX_BUMP_TIP = 0;
-const MAX_CLAIM_FEE = 1000000000000000000n;
-const INITIAL_TOTAL_STAKE_CAP = "1000000000000000000000000"; // TODO: Verify this value (placeholder for now)
+const ZK_REWARD_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
+const ZK_STAKE_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
+const MAX_CLAIM_FEE = 500n ** 18n; // 500 ZK
+const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
+const MAX_BUMP_TIP = 5n ** 18n; // 5 ZK
 const STAKER_NAME = "ZkStaker";
+const INITIAL_TOTAL_STAKE_CAP =  400_000_000n ** 18n; // 400,000,000 ZK
+const FEE_AMOUNT = 0;
+const FEE_COLLECTOR = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"
 
 // BinaryEligibilityOracle Params
-const EARNING_POWER_OWNER = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
-const SCORE_ORACLE = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
-const STALE_ORACLE_WINDOW =  7 * NUMBER_OF_SECONDS_IN_A_DAY;
-const ORACLE_PAUSE_GUARDIAN = "0xEAC5F0d4A9a45E1f9FdD0e7e2882e9f60E301156";
-const DELEGATEE_SCORE_ELIGIBILITY_THRESHOLD = 100;
+const EARNING_POWER_OWNER = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40";
+const SCORE_ORACLE = "0x8120341a040f5776E4a10CC06fB2009fbB187055";
+const STALE_ORACLE_WINDOW =  30 * NUMBER_OF_SECONDS_IN_A_DAY;
+const ORACLE_PAUSE_GUARDIAN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40";
+const DELEGATEE_SCORE_ELIGIBILITY_THRESHOLD = 1;
 const UPDATE_ELIGIBILITY_DELAY = 7 * NUMBER_OF_SECONDS_IN_A_DAY;
 
 
@@ -59,7 +61,7 @@ async function main() {
   // Deploy ZkStaker contract using create
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
-  const constructorArgs = [ZK_TOKEN_ADDRESS, ZK_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculatorContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
+  const constructorArgs = [ZK_REWARD_TOKEN_ADDRESS , ZK_STAKE_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculatorContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
 	const zkStaker = await hre.zkUpgrades.deployProxy(
     deployer.zkWallet,
     zkStakerContractArtifact,
@@ -72,22 +74,17 @@ async function main() {
   const zkStakerContractAddress = await zkStaker.getAddress();
   console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
 
-  // Deploy the MintRewardNotifier contract using create
-  const mintRewardNotifierContractName = "MintRewardNotifier";
-  const mintRewardNotifierContractArtifact = await deployer.loadArtifact(mintRewardNotifierContractName);
-  const mintRewardNotifier = await deployer.deploy(mintRewardNotifierContractArtifact, [zkStakerContractAddress, REWARD_AMOUNT, REWARD_INTERVAL, ZK_GOV_OPS_TIMELOCK, ZK_CAPPED_MINTER], "create", undefined);
-  await mintRewardNotifier.deploymentTransaction()?.wait();
-  const mintRewardNotifierContractAddress = await mintRewardNotifier.getAddress();
-  console.log(`${mintRewardNotifierContractName} was deployed to ${mintRewardNotifierContractAddress}`);
-
-  // Set the notifier of the ZkStaker contract to the MintRewardNotifier
-  await zkStaker.setRewardNotifier(mintRewardNotifierContractAddress, true);
+	// Set Tally as the claimer
+	await zkStaker.setClaimFeeParameters({
+		feeAmount: FEE_AMOUNT,
+		feeCollector: FEE_COLLECTOR
+	});
 
   // Set the admin of the ZkStaker contract to the timelock
-  await zkStaker.setAdmin(ZK_GOV_OPS_TIMELOCK);
+  await zkStaker.setAdmin(STAKER_ADMIN);
 
   // Output the contract addresses to be captured by the calling script
-  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculatorContractAddress}\nMINT_REWARD_NOTIFIER_ADDRESS=${mintRewardNotifierContractAddress}\n`);
+  console.log(`ZKSTAKER_ADDRESS=${zkStakerContractAddress}\nEARNING_POWER_CALCULATOR_ADDRESS=${earningPowerCalculatorContractAddress}\n`);
 }
 
 main().catch((error) => {
