@@ -64,9 +64,9 @@ describe("DeployZkStaker", function () {
     }
     // Get the deployed contract instances
     const ZkStaker = await ethers.getContractFactory("ZkStaker");
-    const IdentityEarningPowerCalculator = await ethers.getContractFactory("BinaryEligibilityOracleEarningPowerCalculator");
+    const BinaryEligibilityOracleEarningPowerCalculator = await ethers.getContractFactory("BinaryEligibilityOracleEarningPowerCalculator");
     zkStaker = ZkStaker.attach(zkStakerContractAddress ) as Contract;
-    earningPowerCalculator  = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
+    earningPowerCalculator  = BinaryEligibilityOracleEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
   });
 
   after(async function () {

@@ -13,9 +13,6 @@ const EARNING_POWER_CALCULATOR_NAME = "BinaryEligibilityOracleEarningPowerCalcul
 
 // Notifier deployment constructor arguments
 const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
-const REWARD_AMOUNT = "1000000000000000000"; // TODO: Verify this value (placeholder for now)
-const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY; // 30 days
-
 
 // ZkStaker deployment constructor arguments
 const ZK_REWARD_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
