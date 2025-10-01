@@ -90,7 +90,10 @@ describe("DeployZkStaker", function () {
     const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 400_000_000n * (10n ** 18n); // 1e24 string instead of bigNumber
     const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
-    
+    const PROXY_ADMIN = await zkStaker.getAdmin() as Contract;
+		const PROXY_ADMIN_OWNER = await PROXY_ADMIN.owner().to.properAddress;
+		const TOKEN_GOVERNOR_TIMELOCK = "0xe5d21A9179CA2E1F0F327d598D464CcF60d89c3d";
+
     expect(await zkStaker.REWARD_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.STAKE_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.MAX_CLAIM_FEE()).to.equal(MAX_CLAIM_FEE);
@@ -98,5 +101,6 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.totalStakeCap()).to.equal(INITIAL_TOTAL_STAKE_CAP);
     expect(await zkStaker.earningPowerCalculator()).to.equal(earningPowerCalculatorAddress);
     expect(await zkStaker.admin()).to.equal(STAKER_ADMIN);
+    expect(PROXY_ADMIN_OWNER).to.equal(TOKEN_GOVERNOR_TIMELOCK);
   });
 });
