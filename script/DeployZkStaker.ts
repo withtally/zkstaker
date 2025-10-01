@@ -59,23 +59,23 @@ async function main() {
   const zkStakerContractName  = "ZkStaker";
   const zkStakerContractArtifact = await deployer.loadArtifact(zkStakerContractName );
   const constructorArgs = [ZK_REWARD_TOKEN_ADDRESS , ZK_STAKE_TOKEN_ADDRESS, MAX_CLAIM_FEE, zkWallet.address, MAX_BUMP_TIP, earningPowerCalculatorContractAddress, STAKER_NAME, INITIAL_TOTAL_STAKE_CAP];
-	const zkStaker = await hre.zkUpgrades.deployProxy(
+   const zkStaker = await hre.zkUpgrades.deployProxy(
     deployer.zkWallet,
     zkStakerContractArtifact,
     constructorArgs,
     {
       initializer: "initialize",
-			unsafeAllow: ["constructor"]
+      unsafeAllow: ["constructor"]
     });
   await zkStaker.deploymentTransaction()?.wait();
   const zkStakerContractAddress = await zkStaker.getAddress();
   console.log(`${zkStakerContractName } was deployed to ${zkStakerContractAddress}`);
 
-	// Set Tally as the claimer
-	await zkStaker.setClaimFeeParameters({
-		feeAmount: FEE_AMOUNT,
-		feeCollector: FEE_COLLECTOR
-	});
+  // Set Tally as the claimer
+  await zkStaker.setClaimFeeParameters({
+    feeAmount: FEE_AMOUNT,
+    feeCollector: FEE_COLLECTOR
+  });
 
   // Set the admin of the ZkStaker contract to the timelock
   await zkStaker.setAdmin(STAKER_ADMIN);
