@@ -64,10 +64,8 @@ describe("DeployZkStaker", function () {
     }
     // Get the deployed contract instances
     const ZkStaker = await ethers.getContractFactory("ZkStaker");
-    const MintRewardNotifier = await ethers.getContractFactory("MintRewardNotifier");
     const IdentityEarningPowerCalculator = await ethers.getContractFactory("BinaryEligibilityOracleEarningPowerCalculator");
     zkStaker = ZkStaker.attach(zkStakerContractAddress ) as Contract;
-    mintRewardNotifier = MintRewardNotifier.attach(mintRewardNotifierAddress) as Contract;
     earningPowerCalculator  = IdentityEarningPowerCalculator.attach(earningPowerCalculatorAddress) as Contract;
   });
 
@@ -86,20 +84,12 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.earningPowerCalculator()).to.properAddress;
   });
 
-  it("should deploy the MintRewardNotifier contract", async function () {
-    expect(await zkStaker.isRewardNotifier(mintRewardNotifierAddress)).to.equal(true);
-  });
-
   it("should have the correct constructor arguments", async function () {
     const ZK_TOKEN_ADDRESS = "0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E";
     const MAX_CLAIM_FEE = 1000000000000000000n;
     const MAX_BUMP_TIP = 0;
     const INITIAL_TOTAL_STAKE_CAP = 1000000000000000000000000n; // 1e24 string instead of bigNumber
-    const ZK_GOV_OPS_TIMELOCK = "0xC3e970cB015B5FC36edDf293D2370ef5D00F7a19"
-    const ZK_CAPPED_MINTER = "0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"; //TODO: Verify this value (placeholder for now)
-    const REWARD_AMOUNT = 1000000000000000000n;
-    const NUMBER_OF_SECONDS_IN_A_DAY = 86400;
-    const REWARD_INTERVAL = 30 * NUMBER_OF_SECONDS_IN_A_DAY;
+		const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
     
     expect(await zkStaker.REWARD_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
     expect(await zkStaker.STAKE_TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
@@ -107,13 +97,6 @@ describe("DeployZkStaker", function () {
     expect(await zkStaker.maxBumpTip()).to.equal(MAX_BUMP_TIP);
     expect(await zkStaker.totalStakeCap()).to.equal(INITIAL_TOTAL_STAKE_CAP);
     expect(await zkStaker.earningPowerCalculator()).to.equal(earningPowerCalculatorAddress);
-    expect(await zkStaker.admin()).to.equal(ZK_GOV_OPS_TIMELOCK);
-
-    expect(await mintRewardNotifier.RECEIVER()).to.equal(zkStakerContractAddress);
-    expect(await mintRewardNotifier.TOKEN()).to.equal(ZK_TOKEN_ADDRESS);
-    expect(await mintRewardNotifier.rewardAmount()).to.equal(REWARD_AMOUNT);
-    expect(await mintRewardNotifier.rewardInterval()).to.equal(REWARD_INTERVAL);
-    expect(await mintRewardNotifier.minter()).to.equal(ZK_CAPPED_MINTER);
-    expect(await mintRewardNotifier.owner()).to.equal(ZK_GOV_OPS_TIMELOCK);
+    expect(await zkStaker.admin()).to.equal(STAKER_ADMIN);
   });
 });
