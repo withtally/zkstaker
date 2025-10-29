@@ -6,6 +6,7 @@
     "compile": "forge build --zksync && npx hardhat compile",
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
+    "reward-notifier": "npm run script script/rewards/RewardNotifier.ts --",
     "foundry-test": "forge test --no-match-path 'test/*.integration.t.sol' --zksync",
     "test": "forge test --zksync && npx hardhat test",
     "lint": "scopelint check",
@@ -21,7 +22,9 @@
     "@openzeppelin/contracts": "^5.2.0",
     "dotenv": "^16.4.5",
     "forge-std": "github:foundry-rs/forge-std",
-    "hardhat": "^2.22.2"
+    "hardhat": "^2.22.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "volta": {
     "node": "20.12.0",
@@ -29,6 +32,10 @@
   },
   "dependencies": {
     "@matterlabs/hardhat-zksync-verify": "^1.6.0",
+    "@turnkey/api-key-stamper": "^0.4.1",
+    "@turnkey/ethers": "^0.19.3",
+    "@turnkey/http": "^2.12.1",
+    "ethers": "^5.7.2",
     "staker": "github:withtally/staker#v1.0.1"
   }
 }
