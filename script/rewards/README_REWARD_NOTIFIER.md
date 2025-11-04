@@ -27,13 +27,15 @@ The ZKStaker contract uses a continuous reward distribution mechanism:
    - If current rate < desired rate: calculates how many tokens need to be added
 
 3. **Create Transaction Plan**:
-   - **Transaction 1**: Mint rewards via `ZkCappedMinterV2.mint()`
-   - **Transaction 2**: Notify staker via `ZkStaker.notifyRewardAmount()`
+   - **Transaction 1**: Request mint via `ZkMinterDelayV1.mint()` (creates delayed mint request)
+   - **Wait Period**: Wait for the mint delay period to elapse
+   - **Transaction 2**: Execute mint via `ZkMinterDelayV1.executeMint()` (mints tokens to staker)
+   - **Transaction 3**: Notify staker via `ZkStaker.notifyRewardAmount()` (activates rewards)
 
 4. **Execute Transactions** (if not in dry-run mode):
    - Signs transactions using Turnkey's secure key management
-   - Executes transactions sequentially
-   - Handles partial failures with clear instructions
+   - Executes transactions sequentially with built-in delay handling
+   - Handles partial failures with clear recovery instructions
 
 ## Prerequisites
 
@@ -55,8 +57,10 @@ To set up Turnkey:
 ### 2. Contract Permissions
 
 The Turnkey-controlled wallet must have:
-- `MINTER_ROLE` on the `ZkCappedMinterV2` contract at `0x721b6d77a58FaaF540bE49F28D668a46214Ba44c`
+- `MINTER_ROLE` on the `ZkMinterDelayV1` (DelayMod) contract
 - Authorization as a reward notifier on the ZKStaker contract
+
+**About the DelayMod**: The script uses ZkMinterDelayV1, which implements a time-delayed minting pattern. When you request a mint, there's a configurable delay period before the mint can be executed. This provides a veto window for governance oversight. See: https://docs.zknation.io/zksync-governance-proposals/token-program-proposals-tpps/minter-mods-overview#delay-mod
 
 ### 3. Environment Configuration
 
@@ -68,7 +72,7 @@ ZKSYNC_RPC_URL=https://mainnet.era.zksync.io
 
 # Contract Addresses
 ZKSTAKER_ADDRESS="0x..."  # Your deployed ZkStaker address
-ZKCAPPED_MINTER_ADDRESS="0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"
+DELAY_MOD_ADDRESS="0x..."  # ZkMinterDelayV1 contract address
 ZK_TOKEN_ADDRESS="0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E"
 
 # Turnkey Configuration
@@ -329,7 +333,7 @@ rewardsToAdd = (desiredScaledRate × REWARD_DURATION / SCALE_FACTOR) - remaining
 ### Script fails with "Missing Turnkey configuration" or "ZKSTAKER_ADDRESS is not set"
 
 - Check that all environment variables are set in `.env`:
-  - Contract addresses: `ZKSTAKER_ADDRESS`, `ZKCAPPED_MINTER_ADDRESS`, `ZK_TOKEN_ADDRESS`
+  - Contract addresses: `ZKSTAKER_ADDRESS`, `DELAY_MOD_ADDRESS`, `ZK_TOKEN_ADDRESS`
   - Turnkey credentials: `TURNKEY_ORGANIZATION_ID`, `TURNKEY_API_PUBLIC_KEY`, `TURNKEY_API_PRIVATE_KEY`, `TURNKEY_WALLET_ADDRESS`
 - Verify the values are correct (no extra quotes or whitespace)
 - Ensure the `.env` file is in the project root directory

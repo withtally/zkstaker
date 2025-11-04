@@ -23,7 +23,7 @@ Edit `.env` and add:
 ```bash
 # Contract Addresses
 ZKSTAKER_ADDRESS="0xYourDeployedZkStakerAddress"
-ZKCAPPED_MINTER_ADDRESS="0x721b6d77a58FaaF540bE49F28D668a46214Ba44c"
+DELAY_MOD_ADDRESS="0xYourDelayModAddress"  # ZkMinterDelayV1 contract
 ZK_TOKEN_ADDRESS="0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E"
 
 # Turnkey Configuration
@@ -59,7 +59,7 @@ Before running the script, ensure:
 - [ ] Turnkey organization is created
 - [ ] Turnkey API keys are generated
 - [ ] Turnkey wallet is created and funded (for gas)
-- [ ] Turnkey wallet has `MINTER_ROLE` on ZkCappedMinterV2
+- [ ] Turnkey wallet has `MINTER_ROLE` on the DelayMod contract
 - [ ] Turnkey wallet is authorized as a notifier on ZkStaker
 - [ ] Contract addresses are correctly set in `.env`
 - [ ] `.env` file is configured with all Turnkey credentials and contract addresses
@@ -68,12 +68,14 @@ Before running the script, ensure:
 
 ### Grant Minter Role
 
-The Turnkey wallet needs the `MINTER_ROLE` on the ZkCappedMinterV2 contract:
+The Turnkey wallet needs the `MINTER_ROLE` on the DelayMod contract:
 
 ```solidity
-// On ZkCappedMinterV2 (0x721b6d77a58FaaF540bE49F28D668a46214Ba44c)
+// On ZkMinterDelayV1 (your deployed DelayMod address)
 grantRole(MINTER_ROLE, TURNKEY_WALLET_ADDRESS);
 ```
+
+**Note**: The script uses a DelayMod which creates a time-delayed mint request. The mint must be executed after the delay period elapses.
 
 ### Authorize as Reward Notifier
 
@@ -111,7 +113,7 @@ npm run reward-notifier -- --rate=5.5
 - Verify all environment variables are set in `.env`
 - Check for typos or extra spaces
 - Ensure the `.env` file is in the project root
-- Make sure contract addresses are set (ZKSTAKER_ADDRESS, ZKCAPPED_MINTER_ADDRESS, ZK_TOKEN_ADDRESS)
+- Make sure contract addresses are set (ZKSTAKER_ADDRESS, DELAY_MOD_ADDRESS, ZK_TOKEN_ADDRESS)
 
 ### "Mint transaction failed"
 

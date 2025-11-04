@@ -14,7 +14,7 @@ dotEnvConfig();
 
 // Contract Addresses
 const ZKSTAKER_ADDRESS = process.env.ZKSTAKER_ADDRESS;
-const ZKCAPPED_MINTER_ADDRESS = process.env.ZKCAPPED_MINTER_ADDRESS;
+const DELAY_MOD_ADDRESS = process.env.DELAY_MOD_ADDRESS;
 const ZK_TOKEN_ADDRESS = process.env.ZK_TOKEN_ADDRESS;
 
 // RPC Configuration
@@ -43,8 +43,13 @@ const STAKER_ABI = [
   "function REWARDS_TOKEN() view returns (address)"
 ];
 
-const MINTER_ABI = [
-  "function mint(address to, uint256 amount) external"
+const DELAY_MOD_ABI = [
+  "function mint(address to, uint256 amount) external returns (uint256)",
+  "function executeMint(uint256 mintRequestId) external",
+  "function getMintRequest(uint256 mintRequestId) view returns (tuple(address minter, address to, uint256 amount, uint48 requestedAt, bool executed, bool vetoed))",
+  "function mintDelay() view returns (uint48)",
+  "function nextMintRequestId() view returns (uint256)",
+  "event MintRequested(uint256 indexed mintRequestId, address indexed minter, address indexed to, uint256 amount, uint48 requestedAt)"
 ];
 
 const ERC20_ABI = [
@@ -70,6 +75,15 @@ interface TransactionPlan {
   newRewardRate: bigint;
   currentRate: bigint;
   desiredRate: bigint;
+}
+
+interface MintRequest {
+  minter: string;
+  to: string;
+  amount: bigint;
+  requestedAt: number;
+  executed: boolean;
+  vetoed: boolean;
 }
 
 // ============================================================================
@@ -279,10 +293,11 @@ function initializeTurnkeySigner(provider: Provider): TurnkeySigner {
 }
 
 /**
- * Execute the reward notification transactions
+ * Execute the reward notification transactions using DelayMod
  */
 async function executeTransactions(
   signer: TurnkeySigner,
+  provider: Provider,
   plan: TransactionPlan,
   dryRun: boolean
 ): Promise<void> {
@@ -290,38 +305,124 @@ async function executeTransactions(
   console.log(`${dryRun ? "🔍 DRY RUN MODE" : "🚀 EXECUTING TRANSACTIONS"}`);
   console.log(`${"=".repeat(70)}`);
 
-  const minter = new ethers.Contract(ZKCAPPED_MINTER_ADDRESS, MINTER_ABI, signer);
-  const staker = new ethers.Contract(ZKSTAKER_ADDRESS, STAKER_ABI, signer);
+  const delayMod = new ethers.Contract(DELAY_MOD_ADDRESS!, DELAY_MOD_ABI, dryRun ? provider : signer);
+  const staker = new ethers.Contract(ZKSTAKER_ADDRESS!, STAKER_ABI, dryRun ? provider : signer);
 
-  // Transaction 1: Mint rewards
-  console.log(`\n📝 Transaction 1: Mint Rewards`);
-  console.log(`   Contract: ${ZKCAPPED_MINTER_ADDRESS}`);
+  // Get the mint delay
+  const mintDelay = await delayMod.mintDelay();
+  const mintDelaySeconds = Number(mintDelay.toString());
+  console.log(`\n⏱️  Mint Delay: ${mintDelaySeconds} seconds (${Math.floor(mintDelaySeconds / 60)} minutes)`);
+
+  let mintRequestId: bigint | undefined;
+
+  // Transaction 1: Request mint via DelayMod
+  console.log(`\n📝 Transaction 1: Request Mint via DelayMod`);
+  console.log(`   Contract: ${DELAY_MOD_ADDRESS}`);
   console.log(`   Function: mint(address to, uint256 amount)`);
   console.log(`   To: ${ZKSTAKER_ADDRESS}`);
   console.log(`   Amount: ${formatEther(plan.mintAmount)} ZK`);
 
   if (dryRun) {
     console.log(`   Status: ⏭️  Skipped (dry run)`);
+    // In dry run, simulate a mint request ID
+    mintRequestId = 0n;
   } else {
     try {
-      const mintTx = await minter.mint(ZKSTAKER_ADDRESS, plan.mintAmount);
-      console.log(`   Tx Hash: ${mintTx.hash}`);
+      const mintRequestTx = await delayMod.mint(ZKSTAKER_ADDRESS, plan.mintAmount);
+      console.log(`   Tx Hash: ${mintRequestTx.hash}`);
       console.log(`   Status: ⏳ Waiting for confirmation...`);
 
-      const mintReceipt = await mintTx.wait();
-      console.log(`   Status: ✅ Confirmed in block ${mintReceipt.blockNumber}`);
+      const mintRequestReceipt = await mintRequestTx.wait();
+      console.log(`   Status: ✅ Confirmed in block ${mintRequestReceipt.blockNumber}`);
+
+      // Parse the MintRequested event to get the mint request ID
+      const mintRequestedEvent = mintRequestReceipt.logs
+        .map((log: any) => {
+          try {
+            return delayMod.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((event: any) => event && event.name === "MintRequested");
+
+      if (mintRequestedEvent) {
+        mintRequestId = BigInt(mintRequestedEvent.args.mintRequestId.toString());
+        console.log(`   Mint Request ID: ${mintRequestId}`);
+      } else {
+        throw new Error("Failed to parse MintRequested event");
+      }
     } catch (error: any) {
       console.error(`   Status: ❌ Failed`);
       console.error(`   Error: ${error.message}`);
       throw new Error(
-        "CRITICAL: Mint transaction failed. The staker contract has NOT been notified. " +
-        "The system is in a consistent state, but no rewards were added."
+        "CRITICAL: Mint request failed. The system is in a consistent state, but no mint request was created."
       );
     }
   }
 
-  // Transaction 2: Notify staker
-  console.log(`\n📝 Transaction 2: Notify Staker`);
+  // Wait for the delay period
+  console.log(`\n⏳ Waiting for mint delay period...`);
+  console.log(`   Delay: ${mintDelaySeconds} seconds`);
+  console.log(`   The mint request can be executed after this period elapses.`);
+
+  if (!dryRun && mintRequestId !== undefined) {
+    console.log(`   Status: ⏰ Waiting...`);
+    // Wait for the delay period
+    await new Promise(resolve => setTimeout(resolve, mintDelaySeconds * 1000));
+    console.log(`   Status: ✅ Delay period complete`);
+  } else {
+    console.log(`   Status: ⏭️  Skipped (dry run)`);
+  }
+
+  // Transaction 2: Execute mint request
+  console.log(`\n📝 Transaction 2: Execute Mint Request`);
+  console.log(`   Contract: ${DELAY_MOD_ADDRESS}`);
+  console.log(`   Function: executeMint(uint256 mintRequestId)`);
+  console.log(`   Mint Request ID: ${mintRequestId}`);
+
+  if (dryRun) {
+    console.log(`   Status: ⏭️  Skipped (dry run)`);
+  } else {
+    try {
+      const executeMintTx = await delayMod.executeMint(mintRequestId);
+      console.log(`   Tx Hash: ${executeMintTx.hash}`);
+      console.log(`   Status: ⏳ Waiting for confirmation...`);
+
+      const executeMintReceipt = await executeMintTx.wait();
+      console.log(`   Status: ✅ Confirmed in block ${executeMintReceipt.blockNumber}`);
+      console.log(`   Result: ${formatEther(plan.mintAmount)} ZK minted to ${ZKSTAKER_ADDRESS}`);
+    } catch (error: any) {
+      console.error(`   Status: ❌ Failed`);
+      console.error(`   Error: ${error.message}`);
+      throw new Error(
+        "\n" +
+        "=".repeat(70) + "\n" +
+        "⚠️  CRITICAL STATE: MANUAL INTERVENTION REQUIRED ⚠️\n" +
+        "=".repeat(70) + "\n\n" +
+        "The mint request was CREATED but execution FAILED.\n" +
+        "The system is in an INCOMPLETE STATE:\n\n" +
+        `  - Mint request ID: ${mintRequestId}\n` +
+        `  - Amount: ${formatEther(plan.mintAmount)} ZK\n` +
+        "  - The mint has NOT been executed\n" +
+        "  - The staker has NOT been notified\n\n" +
+        "TO FIX THIS STATE:\n\n" +
+        "1. Wait for the delay period to complete if it hasn't already\n" +
+        "2. Execute the mint request manually:\n" +
+        `   Contract: ${DELAY_MOD_ADDRESS}\n` +
+        `   Function: executeMint(uint256 ${mintRequestId})\n\n` +
+        "3. After successful execution, run the notifyRewardAmount:\n" +
+        `   Contract: ${ZKSTAKER_ADDRESS}\n` +
+        `   Function: notifyRewardAmount(uint256 ${plan.notifyAmount})\n` +
+        `   Amount: ${plan.notifyAmount.toString()} (${formatEther(plan.notifyAmount)} ZK)\n\n` +
+        "DO NOT run this script again until the state is fixed!\n" +
+        "=".repeat(70)
+      );
+    }
+  }
+
+  // Transaction 3: Notify staker
+  console.log(`\n📝 Transaction 3: Notify Staker`);
   console.log(`   Contract: ${ZKSTAKER_ADDRESS}`);
   console.log(`   Function: notifyRewardAmount(uint256 amount)`);
   console.log(`   Amount: ${formatEther(plan.notifyAmount)} ZK`);
@@ -344,7 +445,7 @@ async function executeTransactions(
         "=".repeat(70) + "\n" +
         "⚠️  CRITICAL STATE: MANUAL INTERVENTION REQUIRED ⚠️\n" +
         "=".repeat(70) + "\n\n" +
-        "The mint transaction SUCCEEDED but the notify transaction FAILED.\n" +
+        "The mint was EXECUTED but the notify transaction FAILED.\n" +
         "The staker contract is now in a BAD STATE:\n\n" +
         `  - ${formatEther(plan.mintAmount)} ZK tokens have been minted to the staker\n` +
         "  - The staker has NOT been notified of these rewards\n" +
@@ -401,9 +502,9 @@ async function main() {
     process.exit(1);
   }
 
-  if (!ZKCAPPED_MINTER_ADDRESS) {
-    console.error("❌ Error: ZKCAPPED_MINTER_ADDRESS is not set in environment variables");
-    console.error("   Please set ZKCAPPED_MINTER_ADDRESS in your .env file");
+  if (!DELAY_MOD_ADDRESS) {
+    console.error("❌ Error: DELAY_MOD_ADDRESS is not set in environment variables");
+    console.error("   Please set DELAY_MOD_ADDRESS in your .env file");
     process.exit(1);
   }
 
@@ -418,7 +519,7 @@ async function main() {
   console.log(`Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
   console.log(`Desired Rate: ${desiredRatePercentage}% APR`);
   console.log(`ZKStaker: ${ZKSTAKER_ADDRESS}`);
-  console.log(`Minter: ${ZKCAPPED_MINTER_ADDRESS}`);
+  console.log(`DelayMod: ${DELAY_MOD_ADDRESS}`);
   console.log(`${"=".repeat(70)}`);
 
   // Initialize provider
@@ -448,7 +549,7 @@ async function main() {
   }
 
   // Execute transactions
-  await executeTransactions(signer, plan, dryRun);
+  await executeTransactions(signer, provider, plan, dryRun);
 
   if (!dryRun) {
     // Verify the new state

@@ -7,6 +7,8 @@
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
     "reward-notifier": "npm run script script/rewards/RewardNotifier.ts --",
+    "request-mint": "npx ts-node --transpileOnly script/rewards/RequestMint.ts --",
+    "execute-mints": "npx ts-node --transpileOnly script/rewards/ExecuteMints.ts",
     "foundry-test": "forge test --no-match-path 'test/*.integration.t.sol' --zksync",
     "test": "forge test --zksync && npx hardhat test",
     "lint": "scopelint check",
