@@ -6,7 +6,6 @@
     "compile": "forge build --zksync && npx hardhat compile",
     "local-node": "npx hardhat node-zksync",
     "script": "node script/RunScript.js",
-    "reward-notifier": "npm run script script/rewards/RewardNotifier.ts --",
     "request-mint": "npx ts-node --transpileOnly script/rewards/RequestMint.ts --",
     "execute-mints": "npx ts-node --transpileOnly script/rewards/ExecuteMints.ts",
     "notify-reward": "npx ts-node --transpileOnly script/rewards/NotifyReward.ts --",
