@@ -167,6 +167,19 @@ async function executeMintRequest(
   console.log(`   Contract: ${DELAY_MOD_ADDRESS}`);
   console.log(`   Function: executeMint(${request.id})`);
 
+  // Double-check the mint hasn't been executed already
+  try {
+    const currentRequest = await delayMod.getMintRequest(request.id);
+    if (currentRequest.executed) {
+      console.log(`   Status: ⏭️  Mint already executed, skipping...`);
+      return true;
+    }
+  } catch (error: any) {
+    console.error(`   Status: ⚠️  Could not verify mint status`);
+    console.error(`   Error: ${error.message}`);
+    console.error(`   Proceeding with execution attempt...`);
+  }
+
   try {
     const executeTx = await delayMod.executeMint(request.id);
     console.log(`   Tx Hash: ${executeTx.hash}`);

@@ -70,10 +70,12 @@ function calculateCurrentRatePercentage(
     return 0;
   }
   const secondsPerYear = 365n * 24n * 60n * 60n;
-  const annualRewards = scaledRewardRate * secondsPerYear;
-  const ratePercentage = Number(
-    (annualRewards * 100n) / (totalEarningPower * SCALE_FACTOR)
-  );
+  // Contract uses SCALE_FACTOR^2 for scaledRewardRate
+  const annualRewards = (scaledRewardRate * secondsPerYear) / (SCALE_FACTOR * SCALE_FACTOR);
+  console.log("scaledRewardRate", scaledRewardRate);
+  console.log("annualRewards", annualRewards);
+  const ratePercentage = (Number(annualRewards) / Number(totalEarningPower)) * 100;
+  console.log("ratePercentage", ratePercentage);
   return ratePercentage;
 }
 
@@ -90,7 +92,8 @@ function calculateRequiredRewards(
     (state.totalEarningPower * BigInt(Math.floor(desiredRatePercentage * 100))) / 10000n;
 
   const secondsPerYear = 365n * 24n * 60n * 60n;
-  const desiredScaledRate = (desiredAnnualRewards * SCALE_FACTOR) / secondsPerYear;
+  // Contract uses SCALE_FACTOR^2 for scaledRewardRate
+  const desiredScaledRate = (desiredAnnualRewards * SCALE_FACTOR * SCALE_FACTOR) / secondsPerYear;
 
   if (state.scaledRewardRate >= desiredScaledRate) {
     return 0n;
@@ -99,10 +102,10 @@ function calculateRequiredRewards(
   let remainingRewards = 0n;
   if (state.currentTimestamp < state.rewardEndTime) {
     const remainingTime = state.rewardEndTime - state.currentTimestamp;
-    remainingRewards = (state.scaledRewardRate * remainingTime) / SCALE_FACTOR;
+    remainingRewards = (state.scaledRewardRate * remainingTime) / (SCALE_FACTOR * SCALE_FACTOR);
   }
 
-  const totalRewardsNeeded = (desiredScaledRate * state.rewardDuration) / SCALE_FACTOR;
+  const totalRewardsNeeded = (desiredScaledRate * state.rewardDuration) / (SCALE_FACTOR * SCALE_FACTOR);
   const rewardsToAdd = totalRewardsNeeded - remainingRewards;
 
   return rewardsToAdd > 0n ? rewardsToAdd : 0n;
