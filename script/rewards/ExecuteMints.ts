@@ -1,9 +1,8 @@
 import { config as dotEnvConfig } from "dotenv";
-import { ethers } from "ethers";
+import { ethers, JsonRpcProvider, formatEther as ethersFormatEther } from "ethers";
 import { TurnkeySigner } from "@turnkey/ethers";
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
-import type { Provider } from "@ethersproject/providers";
 
 // Load environment variables
 dotEnvConfig();
@@ -59,10 +58,10 @@ interface MintRequest {
 // ============================================================================
 
 function formatEther(value: bigint): string {
-  return ethers.utils.formatEther(value.toString());
+  return ethersFormatEther(value);
 }
 
-function initializeTurnkeySigner(provider: Provider): TurnkeySigner {
+function initializeTurnkeySigner(provider: JsonRpcProvider): TurnkeySigner {
   if (!TURNKEY_ORGANIZATION_ID || !TURNKEY_API_PUBLIC_KEY || !TURNKEY_API_PRIVATE_KEY || !TURNKEY_WALLET_ADDRESS) {
     throw new Error(
       "Missing Turnkey configuration. Please set TURNKEY_ORGANIZATION_ID, TURNKEY_API_PUBLIC_KEY, " +
@@ -243,7 +242,7 @@ async function main() {
   console.log(`${"=".repeat(70)}`);
 
   // Initialize provider
-  const provider = new ethers.providers.JsonRpcProvider(ZKSYNC_RPC_URL);
+  const provider = new JsonRpcProvider(ZKSYNC_RPC_URL);
   const delayModRead = new ethers.Contract(DELAY_MOD_ADDRESS, DELAY_MOD_ABI, provider);
 
   // Get current timestamp and mint delay

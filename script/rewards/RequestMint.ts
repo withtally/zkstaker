@@ -1,9 +1,8 @@
 import { config as dotEnvConfig } from "dotenv";
-import { ethers } from "ethers";
+import { ethers, JsonRpcProvider, formatEther as ethersFormatEther } from "ethers";
 import { TurnkeySigner } from "@turnkey/ethers";
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
-import type { Provider } from "@ethersproject/providers";
 
 // Load environment variables
 dotEnvConfig();
@@ -112,14 +111,14 @@ function calculateRequiredRewards(
 }
 
 function formatEther(value: bigint): string {
-  return ethers.utils.formatEther(value.toString());
+  return ethersFormatEther(value);
 }
 
 // ============================================================================
 // Main Functions
 // ============================================================================
 
-async function getRewardState(provider: Provider): Promise<RewardState> {
+async function getRewardState(provider: JsonRpcProvider): Promise<RewardState> {
   const staker = new ethers.Contract(ZKSTAKER_ADDRESS!, STAKER_ABI, provider);
 
   const [scaledRewardRate, rewardEndTime, totalEarningPower, rewardDuration] =
@@ -142,7 +141,7 @@ async function getRewardState(provider: Provider): Promise<RewardState> {
   };
 }
 
-function initializeTurnkeySigner(provider: Provider): TurnkeySigner {
+function initializeTurnkeySigner(provider: JsonRpcProvider): TurnkeySigner {
   if (!TURNKEY_ORGANIZATION_ID || !TURNKEY_API_PUBLIC_KEY || !TURNKEY_API_PRIVATE_KEY || !TURNKEY_WALLET_ADDRESS) {
     throw new Error(
       "Missing Turnkey configuration. Please set TURNKEY_ORGANIZATION_ID, TURNKEY_API_PUBLIC_KEY, " +
@@ -212,7 +211,7 @@ async function main() {
   console.log(`${"=".repeat(70)}`);
 
   // Initialize provider
-  const provider = new ethers.providers.JsonRpcProvider(ZKSYNC_RPC_URL);
+  const provider = new JsonRpcProvider(ZKSYNC_RPC_URL);
 
   // Get current reward state
   console.log(`\n🔍 Fetching current reward state...`);

@@ -1,0 +1,22 @@
+{
+  "name": "zkstaker-rewards",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turnkey-based reward management scripts for zkStaker",
+  "scripts": {
+    "request-mint": "npx ts-node --transpileOnly RequestMint.ts --",
+    "execute-mints": "npx ts-node --transpileOnly ExecuteMints.ts",
+    "notify-reward": "npx ts-node --transpileOnly NotifyReward.ts --"
+  },
+  "dependencies": {
+    "@turnkey/api-key-stamper": "^0.4.1",
+    "@turnkey/ethers": "^1.3.13",
+    "@turnkey/http": "^2.12.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
