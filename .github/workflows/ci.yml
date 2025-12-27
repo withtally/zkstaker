@@ -28,7 +28,7 @@ jobs:
       - name: Build contracts to get sizes
         run: |
           forge --version
-          forge build --sizes
+          forge build --sizes --zksync
 
   test:
     runs-on: ubuntu-latest
@@ -37,6 +37,14 @@ jobs:
 
       - name: Install Foundry
         uses: dutterbutter/foundry-zksync-toolchain@v1
+
+      # Needed for Hardhat tests
+      - name: Create .env file
+        shell: bash
+        run: |
+          {
+            echo "DEPLOYER_PRIVATE_KEY=${{ secrets.DEPLOYER_PRIVATE_KEY }}"
+          } >> "$GITHUB_ENV"
 
       - name: Install the dependencies
         run: npm install

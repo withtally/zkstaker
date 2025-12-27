@@ -7,6 +7,7 @@ import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {
   IdentityEarningPowerCalculator
 } from "staker/calculators/IdentityEarningPowerCalculator.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract IntegrationTest is Test {
   address constant ZK_TOKEN_ADDRESS = 0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E;
@@ -18,18 +19,27 @@ contract IntegrationTest is Test {
   uint256 constant SCALE_FACTOR = 1e36;
 
   function setUp() public virtual {
-    uint256 _forkId = vm.createFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
-    vm.selectFork(_forkId);
+    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
+
     calculator = new IdentityEarningPowerCalculator();
-    zkStaker = new ZkStaker(
-      IERC20(ZK_TOKEN_ADDRESS),
-      IERC20Staking(ZK_TOKEN_ADDRESS),
-      calculator,
-      1e18,
-      1e24,
-      address(this),
-      "ZkStaker"
+    ZkStaker implementation = new ZkStaker();
+    ERC1967Proxy proxy = new ERC1967Proxy(
+      address(implementation),
+      abi.encodeCall(
+        ZkStaker.initialize,
+        (
+          IERC20(ZK_TOKEN_ADDRESS), // reward token
+          IERC20Staking(ZK_TOKEN_ADDRESS), // stake token
+          0, // max claim fee
+          address(this), // admin
+          1e18, // max bump tip
+          calculator, // earning power calculator
+          "ZkStaker", // name
+          1e24 // stake cap
+        )
+      )
     );
+    zkStaker = ZkStaker(address(proxy));
   }
 
   function _dealStakingToken(address _recipient, uint96 _amount) internal returns (uint96) {

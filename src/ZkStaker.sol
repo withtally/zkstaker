@@ -1,19 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {Staker, IERC20} from "staker/Staker.sol";
-import {StakerPermitAndStake} from "staker/extensions/StakerPermitAndStake.sol";
-import {StakerOnBehalf, EIP712} from "staker/extensions/StakerOnBehalf.sol";
-import {StakerDelegateSurrogateVotes} from "staker/extensions/StakerDelegateSurrogateVotes.sol";
-import {StakerCapDeposits} from "staker/extensions/StakerCapDeposits.sol";
+import {StakerUpgradeable, IERC20} from "staker/StakerUpgradeable.sol";
+import {
+  StakerPermitAndStakeUpgradeable
+} from "staker/extensions/StakerPermitAndStakeUpgradeable.sol";
+import {StakerOnBehalfUpgradeable} from "staker/extensions/StakerOnBehalfUpgradeable.sol";
+import {
+  StakerDelegateSurrogateVotesUpgradeable
+} from "staker/extensions/StakerDelegateSurrogateVotesUpgradeable.sol";
+import {StakerCapDepositsUpgradeable} from "staker/extensions/StakerCapDepositsUpgradeable.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
+import {IERC20Delegates} from "staker/interfaces/IERC20Delegates.sol";
 import {IEarningPowerCalculator} from "staker/interfaces/IEarningPowerCalculator.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
 import {
   IdentityEarningPowerCalculator
 } from "staker/calculators/IdentityEarningPowerCalculator.sol";
+import {
+  BinaryEligibilityOracleEarningPowerCalculator
+} from "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
 import {MintRewardNotifier} from "staker/notifiers/MintRewardNotifier.sol";
 
 /// @title ZkStaker
@@ -24,57 +33,65 @@ import {MintRewardNotifier} from "staker/notifiers/MintRewardNotifier.sol";
 /// contracts.
 /// @dev This contract combines multiple extension modules from the base Staker.
 contract ZkStaker is
-  Staker,
-  StakerPermitAndStake,
-  StakerOnBehalf,
-  StakerDelegateSurrogateVotes,
-  StakerCapDeposits
+  StakerUpgradeable,
+  StakerPermitAndStakeUpgradeable,
+  StakerOnBehalfUpgradeable,
+  StakerDelegateSurrogateVotesUpgradeable,
+  StakerCapDepositsUpgradeable
 {
+  constructor() {
+    _disableInitializers();
+  }
+
   /// @notice Initializes the ZkStaker contract with required parameters.
-  /// @param _rewardsToken ERC20 token in which rewards will be denominated.
+  /// @param _rewardToken ERC20 token in which rewards will be denominated.
   /// @param _stakeToken Delegable governance token which users will stake to earn rewards.
-  /// @param _earningPowerCalculator The contract that will calculate earning power for stakers.
-  /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power.
-  /// @param _initialTotalStakeCap The initial maximum total stake allowed.
+  /// @param _maxClaimFee The maximum fee to charge when claiming.
   /// @param _admin Address which will have permission to manage reward notifiers.
+  /// @param _maxBumpTip Maximum tip that can be paid to bumpers for updating earning power.
+  /// @param _earningPowerCalculator The contract that will calculate earning power for stakers.
   /// @param _name Name used in the EIP712 domain separator for permit functionality.
-  constructor(
-    IERC20 _rewardsToken,
-    IERC20Staking _stakeToken,
-    IEarningPowerCalculator _earningPowerCalculator,
-    uint256 _maxBumpTip,
-    uint256 _initialTotalStakeCap,
+  /// @param _initialStakeCap The initial maximum total stake allowed.
+  function initialize(
+    IERC20 _rewardToken,
+    IERC20 _stakeToken,
+    uint256 _maxClaimFee,
     address _admin,
-    string memory _name
-  )
-    Staker(_rewardsToken, _stakeToken, _earningPowerCalculator, _maxBumpTip, _admin)
-    StakerPermitAndStake(_stakeToken)
-    StakerDelegateSurrogateVotes(_stakeToken)
-    StakerCapDeposits(_initialTotalStakeCap)
-    EIP712(_name, "1")
-  {
-    MAX_CLAIM_FEE = 1e18;
+    uint256 _maxBumpTip,
+    IEarningPowerCalculator _earningPowerCalculator,
+    string memory _name,
+    uint256 _initialStakeCap
+  ) public initializer {
+    __StakerUpgradeable_init(
+      _rewardToken, _stakeToken, _maxClaimFee, _admin, _maxBumpTip, _earningPowerCalculator
+    );
+    __StakerPermitAndStakeUpgradeable_init(IERC20Permit(address(_stakeToken)));
+    __StakerDelegateSurrogateVotesUpgradeable_init(IERC20Delegates(address(_stakeToken)));
+    __EIP712_init(_name, "1");
+    __StakerCapDepositsUpgradeable_init(_initialStakeCap);
+    __Nonces_init();
+    _setMaxClaimFee(_maxClaimFee);
     _setClaimFeeParameters(ClaimFeeParameters({feeAmount: 0, feeCollector: address(0)}));
   }
 
-  /// @inheritdoc Staker
+  /// @inheritdoc StakerUpgradeable
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function _stake(address _depositor, uint256 _amount, address _delegatee, address _claimer)
     internal
     virtual
-    override(Staker, StakerCapDeposits)
+    override(StakerUpgradeable, StakerCapDepositsUpgradeable)
     returns (DepositIdentifier _depositId)
   {
-    return StakerCapDeposits._stake(_depositor, _amount, _delegatee, _claimer);
+    return StakerCapDepositsUpgradeable._stake(_depositor, _amount, _delegatee, _claimer);
   }
 
-  /// @inheritdoc Staker
+  /// @inheritdoc StakerUpgradeable
   /// @dev We override this function to resolve ambiguity between inherited contracts.
   function _stakeMore(Deposit storage deposit, DepositIdentifier _depositId, uint256 _amount)
     internal
     virtual
-    override(Staker, StakerCapDeposits)
+    override(StakerUpgradeable, StakerCapDepositsUpgradeable)
   {
-    StakerCapDeposits._stakeMore(deposit, _depositId, _amount);
+    StakerCapDepositsUpgradeable._stakeMore(deposit, _depositId, _amount);
   }
 }
