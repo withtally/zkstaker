@@ -27,6 +27,7 @@ const TURNKEY_WALLET_ADDRESS = process.env.TURNKEY_WALLET_ADDRESS;
 // Reward Configuration
 const REWARD_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
 const SCALE_FACTOR = BigInt(10 ** 18); // Standard scaling factor used by Staker
+const RATE_TOLERANCE = 0.01; // 0.01% tolerance for rate comparison
 
 // ============================================================================
 // Contract ABIs
@@ -36,7 +37,8 @@ const STAKER_ABI = [
   "function scaledRewardRate() view returns (uint256)",
   "function rewardEndTime() view returns (uint256)",
   "function totalEarningPower() view returns (uint256)",
-  "function REWARD_DURATION() view returns (uint256)"
+  "function REWARD_DURATION() view returns (uint256)",
+  "function notifyRewardAmount(uint256 amount) external"
 ];
 
 const DELAY_MOD_ABI = [
@@ -228,13 +230,86 @@ async function main() {
   console.log(`   Total Earning Power: ${formatEther(state.totalEarningPower)} ZK`);
   console.log(`   Reward End Time: ${new Date(Number(state.rewardEndTime) * 1000).toISOString()}`);
 
-  // Check if we need to do anything
-  if (currentRate >= desiredRatePercentage) {
-    console.log(`\n✅ Current rate (${currentRate.toFixed(4)}%) is already at or above desired rate (${desiredRatePercentage}%)`);
+  // Check if rate is within tolerance - no action needed
+  if (Math.abs(currentRate - desiredRatePercentage) < RATE_TOLERANCE) {
+    console.log(`\n✅ Current rate (${currentRate.toFixed(4)}%) is within tolerance of desired rate (${desiredRatePercentage}%)`);
     console.log(`   No action needed.\n`);
     return;
   }
 
+  // Check if rate is too high - need to lower it by calling notifyRewardAmount(0)
+  if (currentRate > desiredRatePercentage) {
+    console.log(`\n📉 Current rate (${currentRate.toFixed(4)}%) is above desired rate (${desiredRatePercentage}%)`);
+    console.log(`   Will call notifyRewardAmount(0) to lower rate by spreading rewards over new duration.`);
+
+    // Calculate remaining rewards and projected new rate
+    let remainingRewards = 0n;
+    if (state.currentTimestamp < state.rewardEndTime) {
+      const remainingTime = state.rewardEndTime - state.currentTimestamp;
+      remainingRewards = (state.scaledRewardRate * remainingTime) / (SCALE_FACTOR * SCALE_FACTOR);
+    }
+
+    const newScaledRate = (remainingRewards * SCALE_FACTOR * SCALE_FACTOR) / state.rewardDuration;
+    const projectedRate = calculateCurrentRatePercentage(newScaledRate, state.totalEarningPower);
+    console.log(`   Remaining rewards: ${formatEther(remainingRewards)} ZK`);
+    console.log(`   Projected new rate: ${projectedRate.toFixed(4)}% APR`);
+
+    if (dryRun) {
+      console.log(`\n${"=".repeat(70)}`);
+      console.log(`🔍 DRY RUN - Would call notifyRewardAmount(0) on ZKStaker`);
+      console.log(`${"=".repeat(70)}`);
+      console.log(`   Contract: ${ZKSTAKER_ADDRESS}`);
+      console.log(`   Function: notifyRewardAmount(uint256 amount)`);
+      console.log(`   Amount: 0 ZK`);
+      console.log(`\n✅ Dry run completed successfully\n`);
+      return;
+    }
+
+    // Initialize Turnkey signer and call notifyRewardAmount(0)
+    console.log(`\n🔐 Initializing Turnkey signer...`);
+    const signer = initializeTurnkeySigner(provider);
+    console.log(`   Signer address: ${TURNKEY_WALLET_ADDRESS}`);
+
+    console.log(`\n${"=".repeat(70)}`);
+    console.log(`🚀 LOWERING REWARD RATE`);
+    console.log(`${"=".repeat(70)}`);
+
+    const staker = new ethers.Contract(ZKSTAKER_ADDRESS!, STAKER_ABI, signer);
+
+    console.log(`\n📝 Calling notifyRewardAmount(0)...`);
+    console.log(`   Contract: ${ZKSTAKER_ADDRESS}`);
+    console.log(`   Function: notifyRewardAmount(uint256 amount)`);
+    console.log(`   Amount: 0 ZK`);
+
+    try {
+      const notifyTx = await staker.notifyRewardAmount(0);
+      console.log(`   Tx Hash: ${notifyTx.hash}`);
+      console.log(`   Status: ⏳ Waiting for confirmation...`);
+
+      const receipt = await notifyTx.wait();
+      console.log(`   Status: ✅ Confirmed in block ${receipt.blockNumber}`);
+
+      // Fetch new state to confirm
+      const newState = await getRewardState(provider);
+      const newRate = calculateCurrentRatePercentage(newState.scaledRewardRate, newState.totalEarningPower);
+
+      console.log(`\n${"=".repeat(70)}`);
+      console.log(`✅ REWARD RATE LOWERED SUCCESSFULLY`);
+      console.log(`${"=".repeat(70)}`);
+      console.log(`   Previous Rate: ${currentRate.toFixed(4)}% APR`);
+      console.log(`   New Rate: ${newRate.toFixed(4)}% APR`);
+      console.log(`   New Reward End Time: ${new Date(Number(newState.rewardEndTime) * 1000).toISOString()}`);
+      console.log(`${"=".repeat(70)}\n`);
+    } catch (error: any) {
+      console.error(`\n❌ Failed to call notifyRewardAmount`);
+      console.error(`   Error: ${error.message}`);
+      process.exit(1);
+    }
+
+    return;
+  }
+
+  // Rate is too low - need to add rewards via DelayMod
   const rewardsToAdd = calculateRequiredRewards(state, desiredRatePercentage);
 
   if (rewardsToAdd === 0n) {
