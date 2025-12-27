@@ -1,11 +1,12 @@
-# Two-Script Workflow for Reward Management
+# Reward Management Scripts
 
 ## Overview
 
-The reward management system uses **two separate scripts** to handle the delayed minting process via ZkMinterDelayV1 (DelayMod):
+The reward management system uses **two separate scripts** to handle the delayed minting process via ZkMinterDelayV1 (DelayMod), plus a **disaster recovery script**:
 
 1. **RequestMint.ts** - Calculates required rewards and requests a mint
 2. **ExecuteMints.ts** - Finds ready mint requests and executes them
+3. **NotifyReward.ts** - Disaster recovery: manually notify staker of rewards
 
 This separation allows for flexible operation with any delay period, as the execution script doesn't need to wait.
 
@@ -308,7 +309,64 @@ npm run execute-mints
    Manual action required:
    Call staker.notifyRewardAmount(8500000000000000000) immediately!
 ```
-→ Tokens are minted but staker not notified. Follow the recovery instructions immediately.
+→ Tokens are minted but staker not notified. Use **NotifyReward.ts** to recover (see [Disaster Recovery](#disaster-recovery-notifyrewardts) section).
+
+## Disaster Recovery: NotifyReward.ts
+
+### Purpose
+
+`NotifyReward.ts` is a **disaster recovery tool** for when `ExecuteMints.ts` successfully mints tokens but fails to notify the staker contract. This can happen due to:
+
+- Network issues (RPC timeout, connection loss)
+- Gas price spikes between transactions
+- Temporary node unavailability
+
+In this scenario, ZK tokens have been minted to the staker contract, but the staker doesn't know about them. The tokens sit idle until `notifyRewardAmount` is called.
+
+### When to Use
+
+**Only use this script when you see this error from ExecuteMints.ts:**
+
+```
+✅ Execute Mint - Confirmed
+❌ Failed to notify staker
+⚠️  CRITICAL: Mint executed but notify failed!
+   Manual action required:
+   Call staker.notifyRewardAmount(8500000000000000000) immediately!
+```
+
+### Usage
+
+```bash
+# Dry run first to verify the amount
+npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=<amount_in_wei> --dry-run
+
+# Execute the recovery
+npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=<amount_in_wei>
+```
+
+**Parameters:**
+- `--amount=<wei>` - The exact amount from the failed ExecuteMints output (in wei)
+- `--dry-run` - Optional, verify without executing
+
+### Example Recovery
+
+```bash
+# From the error message: Call staker.notifyRewardAmount(8500000000000000000)
+# Use that exact amount:
+
+npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=8500000000000000000 --dry-run
+
+# If dry run looks correct:
+npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=8500000000000000000
+```
+
+### Important Notes
+
+1. **Use the exact amount** from the ExecuteMints error message
+2. **Act quickly** - until notify is called, the minted tokens aren't being distributed as rewards
+3. **Don't use for normal operations** - this is only for recovery; use RequestMint + ExecuteMints for normal workflow
+4. **Verify the mint succeeded** on a block explorer before running recovery
 
 ## Advanced Usage
 

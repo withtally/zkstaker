@@ -1,3 +1,36 @@
+/**
+ * NotifyReward.ts - Disaster Recovery Script
+ *
+ * PURPOSE:
+ * This script is a disaster recovery tool for when ExecuteMints.ts successfully
+ * mints tokens but fails to call notifyRewardAmount on the staker contract.
+ *
+ * WHEN TO USE:
+ * Only use this script when you see this error from ExecuteMints.ts:
+ *
+ *   ✅ Execute Mint - Confirmed
+ *   ❌ Failed to notify staker
+ *   ⚠️  CRITICAL: Mint executed but notify failed!
+ *      Manual action required:
+ *      Call staker.notifyRewardAmount(8500000000000000000) immediately!
+ *
+ * This can happen due to network issues, gas spikes, or RPC unavailability
+ * between the mint and notify transactions.
+ *
+ * WHAT IT DOES:
+ * Calls notifyRewardAmount(amount) on the ZKStaker contract to inform it about
+ * tokens that have already been minted to it. This resumes reward distribution.
+ *
+ * DO NOT USE FOR NORMAL OPERATIONS:
+ * Use RequestMint.ts + ExecuteMints.ts for the normal reward workflow.
+ * This script is only for recovering from failed notify calls.
+ *
+ * USAGE:
+ *   npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=<wei> [--dry-run]
+ *
+ * Use the exact amount from the ExecuteMints error message.
+ */
+
 import { config as dotEnvConfig } from "dotenv";
 import { ethers } from "ethers";
 import { TurnkeySigner } from "@turnkey/ethers";
@@ -81,14 +114,14 @@ async function main() {
 
   if (!amountArg) {
     console.error("❌ Error: Missing required --amount parameter");
+    console.log("\n🚨 DISASTER RECOVERY SCRIPT");
+    console.log("   Use this only when ExecuteMints.ts mints succeed but notify fails.");
+    console.log("   For normal operations, use RequestMint.ts + ExecuteMints.ts instead.");
     console.log("\nUsage:");
     console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=<amount_in_wei> [--dry-run]");
-    console.log("\nExamples:");
-    console.log("  # Notify 0.101 ZK (amount in wei)");
-    console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=101095890410958904 --dry-run");
-    console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=101095890410958904");
-    console.log("\n  # Notify 10 ZK");
-    console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=10000000000000000000");
+    console.log("\nExample (use the exact amount from the ExecuteMints error message):");
+    console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=8500000000000000000 --dry-run");
+    console.log("  npx ts-node --transpileOnly script/rewards/NotifyReward.ts -- --amount=8500000000000000000");
     process.exit(1);
   }
 
@@ -116,7 +149,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\n🎯 ZKStaker Notify Reward`);
+  console.log(`\n🚨 ZKStaker Notify Reward (Disaster Recovery)`);
+  console.log(`${"=".repeat(70)}`);
+  console.log(`⚠️  This script is for recovering from failed ExecuteMints notify calls.`);
+  console.log(`   For normal operations, use RequestMint.ts + ExecuteMints.ts instead.`);
   console.log(`${"=".repeat(70)}`);
   console.log(`Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
   console.log(`ZKStaker: ${ZKSTAKER_ADDRESS}`);
