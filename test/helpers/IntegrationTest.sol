@@ -4,7 +4,9 @@ pragma solidity ^0.8.23;
 import {Test, console2} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
-import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarningPowerCalculator.sol";
+import {
+  IdentityEarningPowerCalculator
+} from "staker/calculators/IdentityEarningPowerCalculator.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract IntegrationTest is Test {

@@ -2,11 +2,13 @@
 pragma solidity ^0.8.28;
 
 import {StakerUpgradeable, IERC20} from "staker/StakerUpgradeable.sol";
-import {StakerPermitAndStakeUpgradeable} from
-  "staker/extensions/StakerPermitAndStakeUpgradeable.sol";
+import {
+  StakerPermitAndStakeUpgradeable
+} from "staker/extensions/StakerPermitAndStakeUpgradeable.sol";
 import {StakerOnBehalfUpgradeable} from "staker/extensions/StakerOnBehalfUpgradeable.sol";
-import {StakerDelegateSurrogateVotesUpgradeable} from
-  "staker/extensions/StakerDelegateSurrogateVotesUpgradeable.sol";
+import {
+  StakerDelegateSurrogateVotesUpgradeable
+} from "staker/extensions/StakerDelegateSurrogateVotesUpgradeable.sol";
 import {StakerCapDepositsUpgradeable} from "staker/extensions/StakerCapDepositsUpgradeable.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {IERC20Delegates} from "staker/interfaces/IERC20Delegates.sol";
@@ -15,9 +17,12 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 
 // these imports needed to get hardhat to include the contracts into the zk-artifacts so the
 // deploy script could find them
-import {IdentityEarningPowerCalculator} from "staker/calculators/IdentityEarningPowerCalculator.sol";
-import {BinaryEligibilityOracleEarningPowerCalculator} from
-  "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
+import {
+  IdentityEarningPowerCalculator
+} from "staker/calculators/IdentityEarningPowerCalculator.sol";
+import {
+  BinaryEligibilityOracleEarningPowerCalculator
+} from "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
 import {MintRewardNotifier} from "staker/notifiers/MintRewardNotifier.sol";
 
 /// @title ZkStaker
