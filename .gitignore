@@ -1,6 +1,18 @@
 # Compiler files
 cache/
 out/
+artifacts-zk/
+cache_hardhat-zk/
+zkout/
+typechain-types/
+
+# ZkSync deployment artifacts
+deployments-zk/
+.upgradable/
+anvil-zksync.log
+
+# Foundry zkSync installer
+foundryup-zksync
 
 # Ignores development broadcast logs
 !/broadcast
