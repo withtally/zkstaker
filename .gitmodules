@@ -10,3 +10,4 @@
 [submodule "lib/staker"]
 	path = lib/staker
 	url = https://github.com/withtally/staker
+	branch = upgradeable-staker
