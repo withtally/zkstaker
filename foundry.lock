@@ -8,7 +8,7 @@
   "lib/staker": {
     "branch": {
       "name": "upgradeable-staker",
-      "rev": "126860bd747c3a919e2ae301b64bf786469afd02"
+      "rev": "768dc70f7cad508454944324e8722689862f5123"
     }
   }
 }
