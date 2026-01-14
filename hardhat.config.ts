@@ -41,6 +41,7 @@ const config: HardhatUserConfig = {
       zksync: true,
       ethNetwork: "mainnet",
       url: process.env.ZKSYNC_MAINNET_RPC_URL || "https://mainnet.era.zksync.io",
+			verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
     zkSyncTestnet: {
       zksync: true,
