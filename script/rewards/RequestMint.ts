@@ -25,7 +25,9 @@ const TURNKEY_API_PRIVATE_KEY = process.env.TURNKEY_API_PRIVATE_KEY;
 const TURNKEY_WALLET_ADDRESS = process.env.TURNKEY_WALLET_ADDRESS;
 
 // Reward Configuration
-const REWARD_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
+const REWARD_DURATION_DAYS = process.env.REWARD_DURATION_DAYS
+  ? parseInt(process.env.REWARD_DURATION_DAYS, 10)
+  : undefined; // Optional override; defaults to contract value if not set
 const SCALE_FACTOR = BigInt(10 ** 18); // Standard scaling factor used by Staker
 const RATE_TOLERANCE = 0.01; // 0.01% tolerance for rate comparison
 
@@ -123,7 +125,7 @@ function formatEther(value: bigint): string {
 async function getRewardState(provider: JsonRpcProvider): Promise<RewardState> {
   const staker = new ethers.Contract(ZKSTAKER_ADDRESS!, STAKER_ABI, provider);
 
-  const [scaledRewardRate, rewardEndTime, totalEarningPower, rewardDuration] =
+  const [scaledRewardRate, rewardEndTime, totalEarningPower, contractRewardDuration] =
     await Promise.all([
       staker.scaledRewardRate(),
       staker.rewardEndTime(),
@@ -134,12 +136,17 @@ async function getRewardState(provider: JsonRpcProvider): Promise<RewardState> {
   const currentBlock = await provider.getBlock("latest");
   const currentTimestamp = BigInt(currentBlock.timestamp);
 
+  // Use env override if set, otherwise use contract value
+  const rewardDuration = REWARD_DURATION_DAYS !== undefined
+    ? BigInt(REWARD_DURATION_DAYS * 24 * 60 * 60)
+    : BigInt(contractRewardDuration.toString());
+
   return {
     scaledRewardRate: BigInt(scaledRewardRate.toString()),
     rewardEndTime: BigInt(rewardEndTime.toString()),
     totalEarningPower: BigInt(totalEarningPower.toString()),
     currentTimestamp,
-    rewardDuration: BigInt(rewardDuration.toString()),
+    rewardDuration,
   };
 }
 
@@ -224,10 +231,12 @@ async function main() {
     state.totalEarningPower
   );
 
+  const rewardDurationDays = Number(state.rewardDuration) / (24 * 60 * 60);
   console.log(`\n📊 Current Reward State:`);
   console.log(`   Current Rate: ${currentRate.toFixed(4)}% APR`);
   console.log(`   Desired Rate: ${desiredRatePercentage.toFixed(4)}% APR`);
   console.log(`   Total Earning Power: ${formatEther(state.totalEarningPower)} ZK`);
+  console.log(`   Reward Duration: ${rewardDurationDays} days${REWARD_DURATION_DAYS !== undefined ? ' (from env)' : ' (from contract)'}`);
   console.log(`   Reward End Time: ${new Date(Number(state.rewardEndTime) * 1000).toISOString()}`);
 
   // Check if rate is within tolerance - no action needed
