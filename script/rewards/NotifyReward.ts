@@ -36,6 +36,7 @@ import { ethers, JsonRpcProvider, formatEther as ethersFormatEther } from "ether
 import { TurnkeySigner } from "@turnkey/ethers";
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
+import { notifySlack } from "./slackNotify";
 
 // Load environment variables
 dotEnvConfig();
@@ -217,6 +218,14 @@ async function main() {
     console.log(`   New Reward End Time: ${new Date(Number(newEndTime.toString()) * 1000).toISOString()}`);
     console.log(`   New Scaled Rate: ${newScaledRate.toString()}`);
     console.log(`${"=".repeat(70)}\n`);
+
+    await notifySlack(
+      `*Disaster Recovery: notifyRewardAmount succeeded*\n` +
+      `Amount: ${formatEther(amount)} ZK\n` +
+      `New reward end: ${new Date(Number(newEndTime.toString()) * 1000).toISOString()}\n` +
+      `New scaled rate: ${newScaledRate.toString()}\n` +
+      `Tx: \`${notifyTx.hash}\``
+    );
   } catch (error: any) {
     console.error(`\n❌ Failed to notify staker`);
     console.error(`   Error: ${error.message}`);
@@ -227,14 +236,27 @@ async function main() {
       console.error(`   staker.grantRole(NOTIFIER_ROLE, ${TURNKEY_WALLET_ADDRESS})`);
     }
 
+    const roleTip = error.message.includes("not notifier")
+      ? `\nTip: Grant NOTIFIER_ROLE to \`${TURNKEY_WALLET_ADDRESS}\``
+      : "";
+    await notifySlack(
+      `*Disaster Recovery FAILED: notifyRewardAmount*\n` +
+      `Amount: ${formatEther(amount)} ZK\n` +
+      `Error: ${error.message}${roleTip}`,
+      "error"
+    );
     process.exit(1);
   }
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
+  .catch(async (error) => {
     console.error("\n💥 Script failed:");
     console.error(error.message || error);
+    await notifySlack(
+      `*NotifyReward (disaster recovery) script crashed*\nError: ${error.message || error}`,
+      "error"
+    );
     process.exit(1);
   });

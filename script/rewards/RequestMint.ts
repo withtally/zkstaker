@@ -3,6 +3,7 @@ import { ethers, JsonRpcProvider, formatEther as ethersFormatEther } from "ether
 import { TurnkeySigner } from "@turnkey/ethers";
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
+import { notifySlack } from "./slackNotify";
 
 // Load environment variables
 dotEnvConfig();
@@ -309,9 +310,23 @@ async function main() {
       console.log(`   New Rate: ${newRate.toFixed(4)}% APR`);
       console.log(`   New Reward End Time: ${new Date(Number(newState.rewardEndTime) * 1000).toISOString()}`);
       console.log(`${"=".repeat(70)}\n`);
+
+      await notifySlack(
+        `*Rate Lowered*\n` +
+        `Previous rate: ${currentRate.toFixed(4)}% APR\n` +
+        `New rate: ${newRate.toFixed(4)}% APR\n` +
+        `New reward end: ${new Date(Number(newState.rewardEndTime) * 1000).toISOString()}\n` +
+        `Tx: \`${notifyTx.hash}\``
+      );
     } catch (error: any) {
       console.error(`\n❌ Failed to call notifyRewardAmount`);
       console.error(`   Error: ${error.message}`);
+      await notifySlack(
+        `*Failed to lower reward rate*\n` +
+        `Attempted: notifyRewardAmount(0) on ZKStaker\n` +
+        `Error: ${error.message}`,
+        "error"
+      );
       process.exit(1);
     }
 
@@ -390,21 +405,49 @@ async function main() {
       console.log(`   1. Wait until ${executeAfter.toISOString()}`);
       console.log(`   2. Run: npx ts-node --transpileOnly script/rewards/ExecuteMints.ts`);
       console.log(`${"=".repeat(70)}\n`);
+
+      await notifySlack(
+        `*Mint Requested*\n` +
+        `Amount: ${formatEther(rewardsToAdd)} ZK\n` +
+        `Request ID: ${mintRequestId}\n` +
+        `Current rate: ${currentRate.toFixed(4)}% APR | Target: ${desiredRatePercentage.toFixed(4)}% APR\n` +
+        `Execute after: ${executeAfter.toISOString()}\n` +
+        `Tx: \`${mintRequestTx.hash}\``
+      );
     } catch (e) {
       console.log(`\n✅ Mint request created (unable to determine request ID)`);
       console.log(`   Run ExecuteMints.ts after the delay period to execute pending mints\n`);
+
+      await notifySlack(
+        `*Mint Requested*\n` +
+        `Amount: ${formatEther(rewardsToAdd)} ZK\n` +
+        `Current rate: ${currentRate.toFixed(4)}% APR | Target: ${desiredRatePercentage.toFixed(4)}% APR\n` +
+        `Tx: \`${mintRequestTx.hash}\`\n` +
+        `_(Request ID could not be determined)_`
+      );
     }
   } catch (error: any) {
     console.error(`\n❌ Failed to request mint`);
     console.error(`   Error: ${error.message}`);
+    await notifySlack(
+      `*Failed to request mint*\n` +
+      `Attempted: ${formatEther(rewardsToAdd)} ZK via DelayMod\n` +
+      `Target rate: ${desiredRatePercentage.toFixed(4)}% APR\n` +
+      `Error: ${error.message}`,
+      "error"
+    );
     process.exit(1);
   }
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
+  .catch(async (error) => {
     console.error("\n💥 Script failed:");
     console.error(error.message || error);
+    await notifySlack(
+      `*RequestMint script crashed*\nError: ${error.message || error}`,
+      "error"
+    );
     process.exit(1);
   });
