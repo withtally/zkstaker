@@ -84,7 +84,8 @@ function calculateCurrentRatePercentage(
 
 function calculateRequiredRewards(
   state: RewardState,
-  desiredRatePercentage: number
+  desiredRatePercentage: number,
+  mintDelay: bigint
 ): bigint {
   if (state.totalEarningPower === 0n) {
     console.log("⚠️  No staking power in the system yet");
@@ -102,9 +103,13 @@ function calculateRequiredRewards(
     return 0n;
   }
 
+  // Project remaining rewards forward by mintDelay: by the time the mint
+  // executes and calls notifyRewardAmount(), rewards will have continued
+  // streaming, leaving fewer remaining rewards to roll into the new window.
+  const executionTimestamp = state.currentTimestamp + mintDelay;
   let remainingRewards = 0n;
-  if (state.currentTimestamp < state.rewardEndTime) {
-    const remainingTime = state.rewardEndTime - state.currentTimestamp;
+  if (executionTimestamp < state.rewardEndTime) {
+    const remainingTime = state.rewardEndTime - executionTimestamp;
     remainingRewards = (state.scaledRewardRate * remainingTime) / (SCALE_FACTOR * SCALE_FACTOR);
   }
 
@@ -319,21 +324,25 @@ async function main() {
   }
 
   // Rate is too low - need to add rewards via DelayMod
-  const rewardsToAdd = calculateRequiredRewards(state, desiredRatePercentage);
+  // Fetch mint delay first: the calculation must account for rewards that
+  // stream out during the delay between requesting and executing the mint.
+  const delayModRead = new ethers.Contract(DELAY_MOD_ADDRESS, DELAY_MOD_ABI, provider);
+  const mintDelay = await delayModRead.mintDelay();
+  const mintDelaySeconds = Number(mintDelay.toString());
+  const mintDelayBigInt = BigInt(mintDelaySeconds);
+
+  const rewardsToAdd = calculateRequiredRewards(state, desiredRatePercentage, mintDelayBigInt);
 
   if (rewardsToAdd === 0n) {
     console.log(`\n✅ No rewards needed to reach desired rate\n`);
     return;
   }
 
+  const delayHours = mintDelaySeconds / 3600;
   console.log(`\n📋 Mint Request:`);
   console.log(`   Rewards to Mint: ${formatEther(rewardsToAdd)} ZK`);
-
-  // Get mint delay
-  const delayModRead = new ethers.Contract(DELAY_MOD_ADDRESS, DELAY_MOD_ABI, provider);
-  const mintDelay = await delayModRead.mintDelay();
-  const mintDelaySeconds = Number(mintDelay.toString());
-  console.log(`   Mint Delay: ${mintDelaySeconds} seconds (${Math.floor(mintDelaySeconds / 60)} minutes)`);
+  console.log(`   Mint Delay: ${mintDelaySeconds} seconds (${delayHours.toFixed(1)} hours)`);
+  console.log(`   (Mint amount compensates for ${delayHours.toFixed(1)}h of rewards streaming during delay)`);
 
   if (dryRun) {
     console.log(`\n${"=".repeat(70)}`);
