@@ -121,8 +121,8 @@ async function findPendingMintRequests(
         vetoed: request.vetoed,
       };
 
-      // Check if request is pending (not executed, not vetoed)
-      if (!mintRequest.executed && !mintRequest.vetoed) {
+      // Check if request is pending (not executed, not vetoed, non-zero amount)
+      if (!mintRequest.executed && !mintRequest.vetoed && mintRequest.amount > 0n) {
         // Check if it's ready to execute (delay has elapsed)
         const canExecuteAt = mintRequest.requestedAt + mintDelay;
         if (currentTimestamp >= canExecuteAt) {
