@@ -1,5 +1,3 @@
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
-
 const LEVEL_EMOJI = {
   info: ":white_check_mark:",
   warning: ":warning:",
@@ -15,6 +13,7 @@ export async function notifySlack(
   message: string,
   level: "info" | "warning" | "error" = "info"
 ): Promise<void> {
+  const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
   if (!SLACK_WEBHOOK_URL) return;
 
   const prefix = LEVEL_EMOJI[level];
