@@ -3,6 +3,7 @@ import { ethers, JsonRpcProvider, formatEther as ethersFormatEther } from "ether
 import { TurnkeySigner } from "@turnkey/ethers";
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
+import { notifySlack } from "./slackNotify";
 
 // Load environment variables
 dotEnvConfig();
@@ -190,6 +191,12 @@ async function executeMintRequest(
     console.error(`   Status: ❌ Failed to execute mint`);
     console.error(`   Error: ${error.message}`);
     console.error(`\n⚠️  Mint execution failed. Skipping notify step.`);
+    await notifySlack(
+      `*executeMint failed for request #${request.id}*\n` +
+      `Amount: ${formatEther(request.amount)} ZK\n` +
+      `Error: ${error.message}`,
+      "error"
+    );
     return false;
   }
 
@@ -214,6 +221,13 @@ async function executeMintRequest(
     console.error(`\n⚠️  CRITICAL: Mint executed but notify failed!`);
     console.error(`   Manual action required:`);
     console.error(`   Call staker.notifyRewardAmount(${request.amount}) immediately!`);
+    await notifySlack(
+      `*CRITICAL: Mint executed but notify failed!*\n` +
+      `Request #${request.id} | Amount: ${formatEther(request.amount)} ZK\n` +
+      `Manual recovery required:\n` +
+      `\`npx ts-node --transpileOnly NotifyReward.ts -- --amount=${request.amount}\``,
+      "error"
+    );
     return false;
   }
 }
@@ -315,15 +329,32 @@ async function main() {
   console.log(`   Failed: ${failCount}`);
   console.log(`${"=".repeat(70)}\n`);
 
+  const totalAmount = pendingRequests.reduce((sum, r) => sum + r.amount, 0n);
   if (failCount > 0) {
+    await notifySlack(
+      `*Execute Mints completed with failures*\n` +
+      `Total: ${pendingRequests.length} | Succeeded: ${successCount} | Failed: ${failCount}\n` +
+      `Total amount attempted: ${formatEther(totalAmount)} ZK`,
+      "warning"
+    );
     process.exit(1);
+  } else {
+    await notifySlack(
+      `*Mints Executed Successfully*\n` +
+      `Processed: ${successCount} request(s)\n` +
+      `Total amount: ${formatEther(totalAmount)} ZK`
+    );
   }
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
+  .catch(async (error) => {
     console.error("\n💥 Script failed:");
     console.error(error.message || error);
+    await notifySlack(
+      `*ExecuteMints script crashed*\nError: ${error.message || error}`,
+      "error"
+    );
     process.exit(1);
   });
