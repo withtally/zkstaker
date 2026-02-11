@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { execSync, spawn } from "child_process";
+import * as net from "net";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -16,6 +17,7 @@ describe("DeployZkStaker", function () {
   let mintRewardNotifierAddress = "";
 
   before(async function () {
+    this.timeout(120000);
     // Get the local Hardhat node is running
     try {
       console.log("Starting local Hardhat node...");
@@ -29,8 +31,22 @@ describe("DeployZkStaker", function () {
       process.exit(1);
     }
 
-    // Wait for a few seconds to ensure the local node is ready
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Wait for the local node to be ready by polling port 8011
+    const maxWaitMs = 30000;
+    const pollIntervalMs = 500;
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      const ready = await new Promise<boolean>((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(pollIntervalMs);
+        socket.once("connect", () => { socket.destroy(); resolve(true); });
+        socket.once("error", () => { socket.destroy(); resolve(false); });
+        socket.once("timeout", () => { socket.destroy(); resolve(false); });
+        socket.connect(8011, "0.0.0.0");
+      });
+      if (ready) break;
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
 
     console.log("About to run deploy script...");
     // Run the deploy script
@@ -72,7 +88,11 @@ describe("DeployZkStaker", function () {
   after(async function () {
     // Terminate the local Hardhat node process
     if (localNodeProcess) {
-      process.kill(-localNodeProcess.pid);
+      try {
+        process.kill(-localNodeProcess.pid);
+      } catch (e) {
+        // Process may have already exited
+      }
     }
   });
 
