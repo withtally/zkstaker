@@ -113,7 +113,7 @@ describe("DeployZkStaker", function () {
     const MAX_CLAIM_FEE = 500n * (10n ** 18n);
     const MAX_BUMP_TIP = 5n * (10n ** 18n);
     const INITIAL_TOTAL_STAKE_CAP = 400_000_000n * (10n ** 18n);
-    const STAKER_ADMIN = "0xf0043eF34F43806318B795b1B671f1EC42DBcd40"; // Tally safe
+    const STAKER_ADMIN = "0x4eA3EA51f8fDFfb34583C9B729b1c443607Be0bC"; // Tally safe
     const PROXY_ADMIN_OWNER = await ProxyAdminContract.owner();
     const TOKEN_GOVERNOR_TIMELOCK = "0xe5d21A9179CA2E1F0F327d598D464CcF60d89c3d";
 

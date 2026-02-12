@@ -5,40 +5,25 @@ import {Test, console2} from "forge-std/Test.sol";
 import {ZkStaker, IERC20} from "src/ZkStaker.sol";
 import {IERC20Staking} from "staker/interfaces/IERC20Staking.sol";
 import {
-  IdentityEarningPowerCalculator
-} from "staker/calculators/IdentityEarningPowerCalculator.sol";
+ BinaryEligibilityOracleEarningPowerCalculator 
+} from "staker/calculators/BinaryEligibilityOracleEarningPowerCalculator.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract IntegrationTest is Test {
   address constant ZK_TOKEN_ADDRESS = 0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E;
   string constant ZKSYNC_RPC_URL = "https://mainnet.era.zksync.io";
   ZkStaker zkStaker;
-  IdentityEarningPowerCalculator calculator;
+  BinaryEligibilityOracleEarningPowerCalculator calculator;
   // ArbitrumDeploy deployScript;
-  uint256 constant REWARD_DURATION = 30 days;
+  uint256 constant REWARD_DURATION = 7 days;
   uint256 constant SCALE_FACTOR = 1e36;
 
   function setUp() public virtual {
-    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 56_644_662);
+    vm.createSelectFork(vm.rpcUrl(ZKSYNC_RPC_URL), 67751772);
 
-    calculator = new IdentityEarningPowerCalculator();
-    ZkStaker implementation = new ZkStaker();
-    ERC1967Proxy proxy = new ERC1967Proxy(
-      address(implementation),
-      abi.encodeCall(
-        ZkStaker.initialize,
-        (
-          IERC20(ZK_TOKEN_ADDRESS), // reward token
-          IERC20Staking(ZK_TOKEN_ADDRESS), // stake token
-          0, // max claim fee
-          address(this), // admin
-          1e18, // max bump tip
-          calculator, // earning power calculator
-          "ZkStaker", // name
-          1e24 // stake cap
-        )
-      )
-    );
+    calculator = BinaryEligibilityOracleEarningPowerCalculator(0xe965415bcD29C8B438Ed2012EE92845923E2cd5A);
+    ZkStaker implementation = ZkStaker(0x5834E5e4Da8454408DF3e8dd88bd3b164dA736A2);
+    ERC1967Proxy proxy = ERC1967Proxy(payable(0x24B5292aDC6CF2373Ddbc09c8699B4F88C6b2CDB));
     zkStaker = ZkStaker(address(proxy));
   }
 
@@ -79,6 +64,17 @@ contract IntegrationTest is Test {
     IERC20(address(zkStaker.REWARD_TOKEN())).transfer(address(zkStaker), _rewardAmount);
     zkStaker.notifyRewardAmount(_rewardAmount);
     vm.stopPrank();
+  }
+
+  function _setTotalStakeCap(uint256 _additionalCap) internal {
+		  uint256 _totalCap = zkStaker.totalStakeCap();
+    vm.prank(0x4eA3EA51f8fDFfb34583C9B729b1c443607Be0bC);
+    zkStaker.setTotalStakeCap(_totalCap + _additionalCap);
+  }
+
+  function _setDelegateeScore(address _delegatee, uint256 _score) internal {
+    vm.prank(calculator.scoreOracle());
+    calculator.updateDelegateeScore(_delegatee, _score);
   }
 
   function _boundEligibilityScore(uint256 _score) internal pure returns (uint256) {
